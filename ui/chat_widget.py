@@ -145,7 +145,7 @@ class ChatWidget(QWidget):
     def append_message(self, role: str, content: str):
         """
         Ajoute un nouveau message à la conversation affichée.
-        
+
         Args:
             role: 'user' ou 'assistant'
             content: Contenu du message
@@ -153,7 +153,7 @@ class ChatWidget(QWidget):
         self.logger.debug(f"[CHAT_WIDGET] ===== append_message() APPELÉ =====")
         self.logger.debug(f"[CHAT_WIDGET] Role: {role}, Longueur contenu: {len(content)}")
         self.logger.debug(f"[CHAT_WIDGET] Messages actuels avant ajout: {len(self.current_messages)}")
-        
+
         # Si c'est un message assistant et qu'il y a déjà un message "loading", le remplacer
         if role == 'assistant' and self.current_messages and self.current_messages[-1]['role'] == 'assistant':
             if '⏳' in self.current_messages[-1]['content']:
@@ -165,16 +165,23 @@ class ChatWidget(QWidget):
                 self._render_html()
                 self.logger.debug(f"[CHAT_WIDGET] Message loading remplacé par réponse finale")
                 return
-        
+
+        # Vérification anti-duplication: ne pas ajouter si le message est identique au dernier
+        if self.current_messages:
+            last_msg = self.current_messages[-1]
+            if last_msg['role'] == role and last_msg['content'] == content:
+                self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION DÉTECTÉE ET ÉVITÉE - Message ignoré (role: {role})")
+                return
+
         self.logger.debug("[CHAT_WIDGET] → Ajout d'un nouveau message")
         message = {'role': role, 'content': content}
         self.current_messages.append(message)
-        
+
         # Si c'est un message user, ne PAS scroller automatiquement
         if role == 'user':
             self.logger.debug("[CHAT_WIDGET] → Message user, should_scroll_to_question = False")
             self.should_scroll_to_question = False
-        
+
         self._render_html()
         self.logger.debug(f"[CHAT_WIDGET] Message ajouté, total: {len(self.current_messages)}")
     
