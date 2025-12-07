@@ -197,19 +197,26 @@ class MainController(QObject):
     def send_message(self, user_message: str):
         """
         Envoie un message et déclenche la réponse de l'API.
-        
+
         Args:
             user_message: Message de l'utilisateur
         """
         if not self.api_client:
             self.error_occurred.emit("Client API non initialisé. Vérifiez vos paramètres.")
             return
-        
+
         if not self.current_conversation_id:
             # Créer une conversation automatiquement
             title = self._generate_title_from_message(user_message)
             self.create_new_conversation(title)
-        
+        elif len(self.current_messages) == 0:
+            # C'est le premier message d'une conversation existante (créée via "New")
+            # Mettre à jour le titre avec les 25 premiers caractères du message
+            new_title = self._generate_title_from_message(user_message)
+            self.db_manager.update_conversation_title(self.current_conversation_id, new_title)
+            self.refresh_conversations_list()
+            self.logger.debug(f"[CONTROLLER] Titre mis à jour: '{new_title}'")
+
         try:
             # Sauvegarde du message utilisateur
             self.db_manager.add_message(
