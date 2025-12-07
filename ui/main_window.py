@@ -85,8 +85,10 @@ class MainWindow(QMainWindow):
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
         center_layout.setContentsMargins(5, 5, 5, 5)
-        
-        self.chat_widget = ChatWidget()
+
+        # Récupérer le thème Highlight.js depuis les settings
+        hljs_theme = self.controller.settings.get_hljs_theme()
+        self.chat_widget = ChatWidget(hljs_theme=hljs_theme)
         center_layout.addWidget(self.chat_widget, stretch=1)
         
         self.input_widget = InputWidget()
@@ -441,11 +443,15 @@ class MainWindow(QMainWindow):
             settings['model'],
             settings['verify_ssl']
         )
-        
+
+        # Mettre à jour le thème Highlight.js
+        if 'hljs_theme' in settings:
+            self.chat_widget.set_hljs_theme(settings['hljs_theme'])
+
         # Mettre à jour les couleurs du chat
         if 'colors' in settings and settings['colors']:
             self.chat_widget.set_custom_colors(settings['colors'])
-        
+
         self.status_bar.showMessage("✅ Paramètres mis à jour", 3000)
     
     def _on_about(self):

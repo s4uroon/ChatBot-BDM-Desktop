@@ -6,6 +6,7 @@ Génération dynamique de HTML pour l'affichage du chat avec Highlight.js
 
 import re
 from typing import List, Dict
+from pathlib import Path
 from .code_parser import CodeParser
 from .css_generator import CSSGenerator
 from core.logger import get_logger
@@ -31,17 +32,65 @@ class HTMLGenerator:
         'cpp', 'c', 'csharp', 'ruby', 'go', 'rust'
     ]
     
-    def __init__(self, css_generator: CSSGenerator = None):
+    def __init__(self, css_generator: CSSGenerator = None, hljs_theme: str = 'dark'):
         """
         Initialise le générateur HTML.
-        
+
         Args:
             css_generator: Générateur de CSS personnalisé (optionnel)
+            hljs_theme: Thème Highlight.js ('light' ou 'dark')
         """
         self.logger = get_logger()
         self.code_parser = CodeParser()
         self.css_generator = css_generator or CSSGenerator()
-    
+        self.hljs_theme = hljs_theme
+        self.assets_dir = Path(__file__).parent.parent / 'assets' / 'highlightjs'
+
+    def _load_hljs_core(self) -> str:
+        """Charge le fichier JavaScript core de Highlight.js."""
+        try:
+            js_file = self.assets_dir / 'highlight.min.js'
+            if js_file.exists():
+                return js_file.read_text(encoding='utf-8')
+            else:
+                self.logger.warning(f"[HTML_GEN] Fichier Highlight.js introuvable: {js_file}")
+                return ""
+        except Exception as e:
+            self.logger.error(f"[HTML_GEN] Erreur lecture Highlight.js: {e}")
+            return ""
+
+    def _load_hljs_languages(self) -> str:
+        """Charge tous les fichiers de langages nécessaires."""
+        languages_js = []
+        languages_dir = self.assets_dir / 'languages'
+
+        for lang in self.SUPPORTED_LANGUAGES:
+            lang_file = languages_dir / f"{lang}.min.js"
+            try:
+                if lang_file.exists():
+                    languages_js.append(lang_file.read_text(encoding='utf-8'))
+                else:
+                    self.logger.warning(f"[HTML_GEN] Langage introuvable: {lang}")
+            except Exception as e:
+                self.logger.error(f"[HTML_GEN] Erreur lecture langage {lang}: {e}")
+
+        return "\n".join(languages_js)
+
+    def _load_hljs_theme_css(self) -> str:
+        """Charge le CSS du thème Highlight.js (light ou dark)."""
+        try:
+            theme_name = 'atom-one-light' if self.hljs_theme == 'light' else 'atom-one-dark'
+            css_file = self.assets_dir / 'styles' / f"{theme_name}.min.css"
+
+            if css_file.exists():
+                return css_file.read_text(encoding='utf-8')
+            else:
+                self.logger.warning(f"[HTML_GEN] Thème CSS introuvable: {css_file}")
+                return ""
+        except Exception as e:
+            self.logger.error(f"[HTML_GEN] Erreur lecture thème CSS: {e}")
+            return ""
+
     def generate_full_html(
         self,
         messages: List[Dict],
@@ -49,37 +98,42 @@ class HTMLGenerator:
     ) -> str:
         """
         Génère le HTML complet pour une conversation.
-        
+
         Args:
             messages: Liste de dicts {'role': str, 'content': str}
             custom_colors: Couleurs personnalisées (optionnel)
-        
+
         Returns:
             HTML complet avec head et body
         """
         # Génération du CSS personnalisé
         custom_css = self.css_generator.generate_css(custom_colors) if custom_colors else ""
-        
+
+        # Charger les fichiers Highlight.js locaux
+        hljs_core_js = self._load_hljs_core()
+        hljs_languages_js = self._load_hljs_languages()
+        hljs_theme_css = self._load_hljs_theme_css()
+
         html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
-    
-    <!-- Highlight.js CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    
-    <!-- Langages supportés -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/perl.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/php.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/powershell.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/java.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
-    
+
+    <!-- Highlight.js (bundled locally) -->
+    <style>
+        {hljs_theme_css}
+    </style>
+    <script>
+        {hljs_core_js}
+    </script>
+
+    <!-- Langages supportés (bundled locally) -->
+    <script>
+        {hljs_languages_js}
+    </script>
+
     <style>
         {self._get_base_css()}
         {custom_css}
@@ -89,13 +143,13 @@ class HTMLGenerator:
     <div class="chat-container">
         {self._generate_messages_html(messages)}
     </div>
-    
+
     <script>
         {self._get_javascript()}
     </script>
 </body>
 </html>"""
-        
+
         return html
     
     def _generate_messages_html(self, messages: List[Dict]) -> str:

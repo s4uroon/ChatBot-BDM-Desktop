@@ -7,7 +7,7 @@ Dialogue de paramètres avec onglets (Connexion, Apparence)
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QPushButton, QCheckBox, QMessageBox,
-    QGroupBox, QFormLayout, QColorDialog
+    QGroupBox, QFormLayout, QColorDialog, QComboBox
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -147,7 +147,20 @@ class SettingsDialog(QDialog):
         """Crée l'onglet de configuration de l'apparence."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        
+
+        # Groupe Thème Highlight.js
+        theme_group = QGroupBox("Thème de Coloration Syntaxique")
+        theme_layout = QFormLayout()
+
+        self.hljs_theme_combo = QComboBox()
+        self.hljs_theme_combo.addItem("🌙 Sombre (Dark)", "dark")
+        self.hljs_theme_combo.addItem("☀️ Clair (Light)", "light")
+        self.hljs_theme_combo.setToolTip("Choisissez le thème de coloration pour les blocs de code")
+        theme_layout.addRow("Thème:", self.hljs_theme_combo)
+
+        theme_group.setLayout(theme_layout)
+        layout.addWidget(theme_group)
+
         # Groupe Couleurs
         colors_group = QGroupBox("Couleurs de la Coloration Syntaxique")
         colors_layout = QFormLayout()
@@ -235,8 +248,14 @@ class SettingsDialog(QDialog):
         self.base_url_input.setText(self.settings_manager.get_base_url())
         self.model_input.setText(self.settings_manager.get_model())
         self.verify_ssl_checkbox.setChecked(self.settings_manager.get_verify_ssl())
-        
-        # Apparence
+
+        # Apparence - Thème Highlight.js
+        current_theme = self.settings_manager.get_hljs_theme()
+        index = self.hljs_theme_combo.findData(current_theme)
+        if index >= 0:
+            self.hljs_theme_combo.setCurrentIndex(index)
+
+        # Apparence - Couleurs
         colors = self.settings_manager.get_all_colors()
         for key, value in colors.items():
             if key in self.color_inputs:
@@ -395,26 +414,31 @@ class SettingsDialog(QDialog):
             )
             return
         
-        # Apparence
+        # Apparence - Thème
+        hljs_theme = self.hljs_theme_combo.currentData()
+
+        # Apparence - Couleurs
         colors = {}
         for key, input_widget in self.color_inputs.items():
             color = input_widget.text()
             if color and self.css_generator.validate_color(color):
                 colors[key] = self.css_generator.normalize_color(color)
-        
+
         # Sauvegarde
         self.settings_manager.set_api_key(api_key)
         self.settings_manager.set_base_url(base_url)
         self.settings_manager.set_model(model)
         self.settings_manager.set_verify_ssl(verify_ssl)
+        self.settings_manager.set_hljs_theme(hljs_theme)
         self.settings_manager.set_all_colors(colors)
-        
+
         # Émettre le signal avec tous les paramètres
         settings_dict = {
             'api_key': api_key,
             'base_url': base_url,
             'model': model,
             'verify_ssl': verify_ssl,
+            'hljs_theme': hljs_theme,
             'colors': colors
         }
         self.settings_saved.emit(settings_dict)
