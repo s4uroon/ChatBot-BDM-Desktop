@@ -1,0 +1,19 @@
+# Requirements pour BUILD - ChatBot BDM Desktop
+# ===============================================
+# Ces dépendances sont nécessaires UNIQUEMENT pour compiler
+# l'application en exécutable Windows portable.
+#
+# Installation :
+#   pip install -r requirements.txt
+#   pip install -r requirements-build.txt
+#
+# Puis lancer :
+#   build_portable.bat
+#   ou
+#   build_portable.ps1
+
+# PyInstaller pour créer l'exécutable
+pyinstaller>=6.0.0
+
+# (Optionnel) Pour optimiser la taille de l'exécutable
+# UPX est déjà utilisé par PyInstaller si disponible

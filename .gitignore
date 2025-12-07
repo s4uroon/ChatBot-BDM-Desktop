@@ -42,3 +42,9 @@ Thumbs.db
 logs/
 exports/
 .ChatBot_BDM_Desktop/
+data/
+
+# PyInstaller
+*.spec.bak
+*.manifest
+*.spec~

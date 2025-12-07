@@ -1,0 +1,227 @@
+================================================================================
+  CHATBOT BDM DESKTOP - GUIDE UTILISATEUR VERSION PORTABLE
+================================================================================
+
+Bienvenue ! Ce guide vous explique comment utiliser ChatBot BDM Desktop
+en version portable.
+
+--------------------------------------------------------------------------------
+  QU'EST-CE QUE LA VERSION PORTABLE ?
+--------------------------------------------------------------------------------
+
+La version portable est une version de l'application qui :
+  - Ne nécessite AUCUNE installation
+  - Peut être placée N'IMPORTE OÙ sur votre ordinateur
+  - Peut même être sur une clé USB
+  - Ne modifie PAS votre système
+  - Se désinstalle en supprimant simplement le dossier
+
+--------------------------------------------------------------------------------
+  PREMIÈRE UTILISATION
+--------------------------------------------------------------------------------
+
+1. EXTRAIRE LE ZIP
+   - Clic droit sur le fichier ZIP > Extraire tout...
+   - Choisissez un emplacement (Exemple : C:\Programs\ChatBot BDM Desktop\)
+   - Confirmez l'extraction
+
+2. LANCER L'APPLICATION
+   - Ouvrez le dossier extrait
+   - Double-cliquez sur "ChatBot BDM Desktop.exe"
+   - L'application se lance !
+
+3. PREMIÈRE CONFIGURATION
+   - Au premier lancement, configurez vos paramètres
+   - Entrez votre clé API OpenAI dans Fichier > Paramètres
+   - C'est prêt !
+
+--------------------------------------------------------------------------------
+  UTILISATION QUOTIDIENNE
+--------------------------------------------------------------------------------
+
+Pour lancer l'application :
+  1. Allez dans le dossier de l'application
+  2. Double-cliquez sur "ChatBot BDM Desktop.exe"
+
+ASTUCE : Créez un raccourci sur le bureau !
+  - Clic droit sur "ChatBot BDM Desktop.exe"
+  - Envoyer vers > Bureau (créer un raccourci)
+
+--------------------------------------------------------------------------------
+  VOS DONNÉES
+--------------------------------------------------------------------------------
+
+Toutes vos données sont stockées dans le dossier "data" :
+
+  ChatBot BDM Desktop/
+    ├── ChatBot BDM Desktop.exe    ← Programme
+    └── data/                       ← VOS DONNÉES ICI
+        ├── chatbot.db             ← Conversations
+        ├── settings.ini           ← Paramètres
+        └── exports/               ← Exports
+
+IMPORTANT :
+  - NE PAS supprimer le dossier "data" (vous perdriez vos conversations)
+  - Pour sauvegarder : copiez le dossier "data"
+  - Pour restaurer : replacez le dossier "data"
+
+--------------------------------------------------------------------------------
+  DÉPLACER L'APPLICATION
+--------------------------------------------------------------------------------
+
+Vous pouvez déplacer l'application où vous voulez :
+
+  1. FERMEZ l'application si elle est ouverte
+  2. Déplacez TOUT LE DOSSIER "ChatBot BDM Desktop" vers le nouvel emplacement
+  3. Relancez l'exe depuis le nouvel emplacement
+  4. Toutes vos données sont préservées !
+
+Exemples d'emplacements :
+  - C:\Programs\ChatBot BDM Desktop\
+  - D:\Mes Applications\ChatBot\
+  - E:\  (clé USB)
+  - \\Serveur\Partage\Apps\  (réseau)
+
+--------------------------------------------------------------------------------
+  SAUVEGARDE DE VOS DONNÉES
+--------------------------------------------------------------------------------
+
+Pour sauvegarder vos conversations et paramètres :
+
+  OPTION 1 : Copie simple
+    - Copiez le dossier "data" vers un lieu sûr
+    - Exemple : copier vers Dropbox, OneDrive, etc.
+
+  OPTION 2 : Export depuis l'application
+    - Dans l'app : Fichier > Exporter la conversation
+    - Choisissez le format (HTML, Markdown, JSON)
+    - Sauvegardez le fichier
+
+--------------------------------------------------------------------------------
+  DÉSINSTALLATION
+--------------------------------------------------------------------------------
+
+Pour désinstaller complètement l'application :
+
+  1. FERMEZ l'application
+  2. Supprimez le dossier "ChatBot BDM Desktop" complet
+  3. C'est tout !
+
+Aucune trace ne reste sur votre système.
+
+--------------------------------------------------------------------------------
+  MISE À JOUR
+--------------------------------------------------------------------------------
+
+Pour mettre à jour vers une nouvelle version :
+
+  MÉTHODE 1 : Conserver les données
+    1. Copiez le dossier "data" de l'ancienne version
+    2. Extrayez la nouvelle version
+    3. Collez le dossier "data" dans la nouvelle version
+    4. Lancez la nouvelle version
+
+  MÉTHODE 2 : Installation propre
+    1. Exportez vos conversations importantes
+    2. Supprimez l'ancienne version
+    3. Installez la nouvelle version
+    4. Importez vos conversations si nécessaire
+
+--------------------------------------------------------------------------------
+  DÉPANNAGE
+--------------------------------------------------------------------------------
+
+PROBLÈME : L'exe ne se lance pas
+
+  SOLUTION 1 : Vérifier l'antivirus
+    - Votre antivirus peut bloquer l'application
+    - Ajoutez une exception pour "ChatBot BDM Desktop.exe"
+
+  SOLUTION 2 : Vérifier les permissions
+    - Clic droit sur l'exe > Propriétés
+    - Décochez "Lecture seule" si coché
+    - Clic sur "Débloquer" si présent
+
+  SOLUTION 3 : Vérifier l'emplacement
+    - Évitez les chemins trop longs (>260 caractères)
+    - Évitez les caractères spéciaux dans le chemin
+
+PROBLÈME : L'application se ferme immédiatement
+
+  SOLUTION : Lancer en mode debug
+    1. Ouvrez l'invite de commande (cmd)
+    2. Naviguez vers le dossier :
+       cd "C:\chemin\vers\ChatBot BDM Desktop"
+    3. Lancez avec debug :
+       "ChatBot BDM Desktop.exe" --debug
+    4. Lisez les messages d'erreur affichés
+
+PROBLÈME : Mes données ont disparu
+
+  VÉRIFICATION :
+    - Le dossier "data" est-il présent ?
+    - Avez-vous déplacé seulement l'exe au lieu du dossier complet ?
+    - Vérifiez vos sauvegardes
+
+  SOLUTION :
+    - Si vous avez une sauvegarde du dossier "data", restaurez-la
+    - Sinon, les données sont perdues :(
+
+PROBLÈME : Erreur "Clé API invalide"
+
+  SOLUTION :
+    1. Fichier > Paramètres
+    2. Vérifiez votre clé API OpenAI
+    3. Assurez-vous qu'elle commence par "sk-"
+    4. Obtenez une nouvelle clé sur platform.openai.com
+
+--------------------------------------------------------------------------------
+  CONSEILS D'UTILISATION
+--------------------------------------------------------------------------------
+
+✅ RECOMMANDÉ :
+  - Créez des sauvegardes régulières du dossier "data"
+  - Utilisez des raccourcis pour lancer rapidement l'application
+  - Exportez les conversations importantes
+  - Gardez l'application dans un emplacement stable
+
+❌ À ÉVITER :
+  - Ne supprimez pas le dossier "data"
+  - Ne déplacez pas seulement l'exe (déplacez tout le dossier)
+  - Ne modifiez pas les fichiers dans "_internal/"
+  - N'ouvrez pas plusieurs instances en même temps
+
+--------------------------------------------------------------------------------
+  CARACTÉRISTIQUES TECHNIQUES
+--------------------------------------------------------------------------------
+
+Configuration minimale :
+  - Windows 10 ou supérieur (64 bits)
+  - 4 Go de RAM
+  - 500 Mo d'espace disque
+  - Connexion Internet (pour l'API OpenAI)
+
+Taille de l'application :
+  - ~150-200 Mo (dossier complet)
+  - ~10-50 Mo (données utilisateur, variable)
+
+Connexion Internet :
+  - Requise pour communiquer avec l'API OpenAI
+  - Les conversations sont stockées localement
+  - Pas de télémétrie, pas d'envoi de données
+
+--------------------------------------------------------------------------------
+  CONTACT ET SUPPORT
+--------------------------------------------------------------------------------
+
+Pour toute question :
+  - Consultez le README.md
+  - Ouvrez une issue sur GitHub
+  - Contactez le support (voir CONTRIBUTING.md)
+
+Version de ce guide : 1.0.0
+Dernière mise à jour : Décembre 2024
+
+================================================================================
+  Merci d'utiliser ChatBot BDM Desktop !
+================================================================================
