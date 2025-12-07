@@ -31,13 +31,28 @@ class MainController(QObject):
     error_occurred = pyqtSignal(str)  # Erreur à afficher
     status_changed = pyqtSignal(str)  # Changement de statut
     
-    def __init__(self):
+    def __init__(self, db_path: Optional[str] = None, settings_file: Optional[str] = None):
+        """
+        Initialise le contrôleur principal.
+
+        Args:
+            db_path: Chemin de la base de données (optionnel)
+            settings_file: Chemin du fichier de configuration (optionnel)
+        """
         super().__init__()
         self.logger = get_logger()
-        
+
         # Managers
-        self.db_manager = DatabaseManager()
-        self.settings_manager = SettingsManager()
+        if db_path:
+            self.db_manager = DatabaseManager(db_path)
+        else:
+            self.db_manager = DatabaseManager()
+
+        if settings_file:
+            self.settings_manager = SettingsManager(settings_file)
+        else:
+            self.settings_manager = SettingsManager()
+
         self.export_manager = ExportManager()
         
         # État

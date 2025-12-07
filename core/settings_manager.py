@@ -6,6 +6,7 @@ Gestionnaire de paramètres avec QSettings (persistance)
 
 from PyQt6.QtCore import QSettings
 from typing import Optional
+from pathlib import Path
 from .logger import get_logger
 
 
@@ -14,7 +15,7 @@ class SettingsManager:
     Gestionnaire centralisé des paramètres de l'application.
     Utilise QSettings pour la persistance cross-platform.
     """
-    
+
     # Valeurs par défaut
     DEFAULTS = {
         # API Settings
@@ -44,11 +45,24 @@ class SettingsManager:
         'behavior/max_displayed_messages': 100,  # Limite pour éviter les ralentissements
     }
     
-    def __init__(self):
-        """Initialise QSettings avec organisation et application."""
+    def __init__(self, settings_file: Optional[str] = None):
+        """
+        Initialise QSettings.
+
+        Args:
+            settings_file: Chemin du fichier de configuration (optionnel).
+                          Si None, utilise l'emplacement par défaut de QSettings.
+        """
         self.logger = get_logger()
-        self.settings = QSettings('ChatbotDesktop', 'ChatbotApp')
-        self.logger.debug("[SETTINGS] Gestionnaire initialisé")
+
+        if settings_file:
+            # Utiliser un fichier .ini spécifique
+            self.settings = QSettings(settings_file, QSettings.Format.IniFormat)
+            self.logger.debug(f"[SETTINGS] Initialisé avec fichier: {settings_file}")
+        else:
+            # Utiliser l'emplacement par défaut de QSettings
+            self.settings = QSettings('ChatbotDesktop', 'ChatbotApp')
+            self.logger.debug("[SETTINGS] Initialisé avec emplacement par défaut")
     
     # === API SETTINGS ===
     

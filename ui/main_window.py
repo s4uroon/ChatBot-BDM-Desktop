@@ -5,6 +5,7 @@ Fenêtre principale de l'application
 """
 
 import time
+from typing import Optional
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar
@@ -30,12 +31,19 @@ class MainWindow(QMainWindow):
     - Menus: Fichier, Paramètres, Aide
     """
     
-    def __init__(self):
+    def __init__(self, db_path: Optional[str] = None, settings_file: Optional[str] = None):
+        """
+        Initialise la fenêtre principale.
+
+        Args:
+            db_path: Chemin de la base de données (optionnel)
+            settings_file: Chemin du fichier de configuration (optionnel)
+        """
         super().__init__()
         self.logger = get_logger()
 
         # Contrôleur
-        self.controller = MainController()
+        self.controller = MainController(db_path=db_path, settings_file=settings_file)
 
         # Worker API (sera créé à chaque requête)
         self.api_worker: APIWorker = None
