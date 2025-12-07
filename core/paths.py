@@ -21,8 +21,9 @@ class UserPaths:
     - Windows: C:\\Users\\USERNAME\\.ChatBot_BDM_Desktop\\
     - Linux/Mac: ~/.ChatBot_BDM_Desktop/
 
-    Structure en mode portable (Windows uniquement):
-    - data/ dans le répertoire de l'exécutable
+    Structure en mode portable:
+    - chatbot.db et settings.ini: Toujours dans ~/.ChatBot_BDM_Desktop/
+    - logs/ et exports/: Dans data/ à côté de l'exécutable
     """
 
     # Nom du répertoire de l'application (caché avec le point initial)
@@ -37,14 +38,21 @@ class UserPaths:
 
         Args:
             custom_db_path: Chemin personnalisé pour la base de données (optionnel)
-            portable_mode: Si True, utilise le mode portable (données à côté de l'exe)
+            portable_mode: Si True, utilise le mode portable pour les fichiers temporaires
         """
         self.logger = get_logger()
         self.portable_mode = portable_mode
 
-        # Déterminer le répertoire de base selon le mode
+        # Le répertoire utilisateur est TOUJOURS dans le home pour les données persistantes
+        self.home_dir = Path.home()
+        self.user_data_dir = self.home_dir / self.APP_DIR_NAME
+
+        # Créer le répertoire utilisateur s'il n'existe pas
+        self._ensure_directory(self.user_data_dir)
+
+        # En mode portable, on utilise aussi un répertoire portable pour les fichiers temporaires
         if self.portable_mode:
-            # Mode portable : utiliser le répertoire de l'exécutable
+            # Mode portable : utiliser le répertoire de l'exécutable pour logs et exports
             if getattr(sys, 'frozen', False):
                 # Exécuté comme exécutable PyInstaller
                 exe_dir = Path(sys.executable).parent
@@ -52,45 +60,48 @@ class UserPaths:
                 # Exécuté comme script Python (pour les tests)
                 exe_dir = Path(__file__).parent.parent
 
-            self.app_dir = exe_dir / self.PORTABLE_DIR_NAME
-            self.logger.info(f"[PATHS] MODE PORTABLE activé - Répertoire: {self.app_dir}")
+            self.portable_dir = exe_dir / self.PORTABLE_DIR_NAME
+            self._ensure_directory(self.portable_dir)
+            self.logger.info(f"[PATHS] MODE PORTABLE activé")
+            self.logger.info(f"[PATHS] Répertoire données utilisateur: {self.user_data_dir}")
+            self.logger.info(f"[PATHS] Répertoire portable (logs/exports): {self.portable_dir}")
         else:
-            # Mode normal : utiliser le répertoire home de l'utilisateur
-            self.home_dir = Path.home()
-            self.app_dir = self.home_dir / self.APP_DIR_NAME
-            self.logger.info(f"[PATHS] Mode normal - Répertoire: {self.app_dir}")
+            # Mode normal : tout dans le répertoire utilisateur
+            self.portable_dir = None
+            self.logger.info(f"[PATHS] Mode normal - Répertoire: {self.user_data_dir}")
 
-        # Créer le répertoire s'il n'existe pas
-        self._ensure_app_directory()
-
-        # Chemins des fichiers
+        # IMPORTANT: chatbot.db et settings.ini sont TOUJOURS dans le répertoire utilisateur
+        # même en mode portable
         if custom_db_path:
             # Si un chemin personnalisé est fourni, l'utiliser tel quel
             self.db_path = Path(custom_db_path)
         else:
-            # Sinon, utiliser le répertoire de l'application
-            self.db_path = self.app_dir / "chatbot.db"
+            # TOUJOURS dans le répertoire utilisateur
+            self.db_path = self.user_data_dir / "chatbot.db"
 
-        # Fichier de configuration
-        self.settings_file = self.app_dir / "settings.ini"
+        # TOUJOURS dans le répertoire utilisateur
+        self.settings_file = self.user_data_dir / "settings.ini"
 
-        # Chemin pour les logs (optionnel)
-        self.logs_dir = self.app_dir / "logs"
+        # logs et exports: dans le répertoire portable si activé, sinon dans le répertoire utilisateur
+        if self.portable_mode and self.portable_dir:
+            self.logs_dir = self.portable_dir / "logs"
+            self.exports_dir = self.portable_dir / "exports"
+        else:
+            self.logs_dir = self.user_data_dir / "logs"
+            self.exports_dir = self.user_data_dir / "exports"
 
-        # Chemin pour les exports
-        self.exports_dir = self.app_dir / "exports"
-
-        self.logger.info(f"[PATHS] Répertoire application: {self.app_dir}")
         self.logger.info(f"[PATHS] Base de données: {self.db_path}")
         self.logger.info(f"[PATHS] Fichier de configuration: {self.settings_file}")
+        self.logger.info(f"[PATHS] Répertoire logs: {self.logs_dir}")
+        self.logger.info(f"[PATHS] Répertoire exports: {self.exports_dir}")
 
-    def _ensure_app_directory(self) -> None:
-        """Crée le répertoire de l'application s'il n'existe pas."""
+    def _ensure_directory(self, directory: Path) -> None:
+        """Crée un répertoire s'il n'existe pas."""
         try:
-            self.app_dir.mkdir(parents=True, exist_ok=True)
-            self.logger.debug(f"[PATHS] Répertoire vérifié/créé: {self.app_dir}")
+            directory.mkdir(parents=True, exist_ok=True)
+            self.logger.debug(f"[PATHS] Répertoire vérifié/créé: {directory}")
         except Exception as e:
-            self.logger.error(f"[PATHS] Erreur création répertoire: {e}", exc_info=True)
+            self.logger.error(f"[PATHS] Erreur création répertoire {directory}: {e}", exc_info=True)
             raise
 
     def ensure_logs_directory(self) -> Path:
@@ -144,9 +155,9 @@ class UserPaths:
         Retourne le répertoire de l'application sous forme de string.
 
         Returns:
-            Chemin absolu du répertoire de l'application
+            Chemin absolu du répertoire de l'application (répertoire utilisateur)
         """
-        return str(self.app_dir.resolve())
+        return str(self.user_data_dir.resolve())
 
     def get_exports_dir(self) -> str:
         """
