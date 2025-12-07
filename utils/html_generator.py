@@ -15,7 +15,7 @@ from core.logger import get_logger
 class HTMLGenerator:
     """
     Générateur de HTML pour l'affichage des conversations.
-    
+
     Fonctionnalités:
     - Rendu des messages user/assistant
     - Intégration Highlight.js pour coloration syntaxique
@@ -24,14 +24,22 @@ class HTMLGenerator:
     - CSS personnalisé selon préférences utilisateur
     - Support Markdown (titres, gras, italique, listes)
     """
-    
+
     # Langages supportés par Highlight.js
     SUPPORTED_LANGUAGES = [
         'python', 'bash', 'perl', 'php', 'html', 'css',
         'powershell', 'java', 'json', 'javascript', 'sql',
         'cpp', 'c', 'csharp', 'ruby', 'go', 'rust'
     ]
-    
+
+    # Cache statique pour les fichiers Highlight.js (partagé entre instances)
+    _hljs_cache = {
+        'core_js': None,
+        'languages_js': None,
+        'theme_dark_css': None,
+        'theme_light_css': None,
+    }
+
     def __init__(self, css_generator: CSSGenerator = None, hljs_theme: str = 'dark'):
         """
         Initialise le générateur HTML.
@@ -46,8 +54,21 @@ class HTMLGenerator:
         self.hljs_theme = hljs_theme
         self.assets_dir = Path(__file__).parent.parent / 'assets' / 'highlightjs'
 
-    def _load_hljs_core(self) -> str:
-        """Charge le fichier JavaScript core de Highlight.js."""
+        # Charger les fichiers en cache au premier accès
+        self._ensure_cache_loaded()
+
+    def _ensure_cache_loaded(self):
+        """Charge les fichiers Highlight.js en cache s'ils ne le sont pas déjà."""
+        if HTMLGenerator._hljs_cache['core_js'] is None:
+            self.logger.debug("[HTML_GEN] Chargement du cache Highlight.js...")
+            HTMLGenerator._hljs_cache['core_js'] = self._read_hljs_core()
+            HTMLGenerator._hljs_cache['languages_js'] = self._read_hljs_languages()
+            HTMLGenerator._hljs_cache['theme_dark_css'] = self._read_hljs_theme('dark')
+            HTMLGenerator._hljs_cache['theme_light_css'] = self._read_hljs_theme('light')
+            self.logger.debug("[HTML_GEN] Cache Highlight.js chargé")
+
+    def _read_hljs_core(self) -> str:
+        """Lit le fichier JavaScript core de Highlight.js depuis le disque."""
         try:
             js_file = self.assets_dir / 'highlight.min.js'
             if js_file.exists():
@@ -59,8 +80,8 @@ class HTMLGenerator:
             self.logger.error(f"[HTML_GEN] Erreur lecture Highlight.js: {e}")
             return ""
 
-    def _load_hljs_languages(self) -> str:
-        """Charge tous les fichiers de langages nécessaires."""
+    def _read_hljs_languages(self) -> str:
+        """Lit tous les fichiers de langages depuis le disque."""
         languages_js = []
         languages_dir = self.assets_dir / 'languages'
 
@@ -76,10 +97,10 @@ class HTMLGenerator:
 
         return "\n".join(languages_js)
 
-    def _load_hljs_theme_css(self) -> str:
-        """Charge le CSS du thème Highlight.js (light ou dark)."""
+    def _read_hljs_theme(self, theme: str) -> str:
+        """Lit le CSS d'un thème Highlight.js depuis le disque."""
         try:
-            theme_name = 'atom-one-light' if self.hljs_theme == 'light' else 'atom-one-dark'
+            theme_name = 'atom-one-light' if theme == 'light' else 'atom-one-dark'
             css_file = self.assets_dir / 'styles' / f"{theme_name}.min.css"
 
             if css_file.exists():
@@ -90,6 +111,20 @@ class HTMLGenerator:
         except Exception as e:
             self.logger.error(f"[HTML_GEN] Erreur lecture thème CSS: {e}")
             return ""
+
+    def _get_hljs_core(self) -> str:
+        """Retourne le JavaScript core depuis le cache."""
+        return HTMLGenerator._hljs_cache['core_js'] or ""
+
+    def _get_hljs_languages(self) -> str:
+        """Retourne les langages depuis le cache."""
+        return HTMLGenerator._hljs_cache['languages_js'] or ""
+
+    def _get_hljs_theme_css(self) -> str:
+        """Retourne le CSS du thème courant depuis le cache."""
+        if self.hljs_theme == 'light':
+            return HTMLGenerator._hljs_cache['theme_light_css'] or ""
+        return HTMLGenerator._hljs_cache['theme_dark_css'] or ""
 
     def generate_full_html(
         self,
@@ -109,10 +144,10 @@ class HTMLGenerator:
         # Génération du CSS personnalisé
         custom_css = self.css_generator.generate_css(custom_colors) if custom_colors else ""
 
-        # Charger les fichiers Highlight.js locaux
-        hljs_core_js = self._load_hljs_core()
-        hljs_languages_js = self._load_hljs_languages()
-        hljs_theme_css = self._load_hljs_theme_css()
+        # Récupérer les fichiers Highlight.js depuis le cache
+        hljs_core_js = self._get_hljs_core()
+        hljs_languages_js = self._get_hljs_languages()
+        hljs_theme_css = self._get_hljs_theme_css()
 
         html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -237,13 +272,19 @@ class HTMLGenerator:
                 
                 # Code inline
                 text = re.sub(r'`([^`]+)`', r'<code class="inline-code">\1</code>', text)
-                
-                # Listes à puces
-                text = re.sub(r'^- (.+)$', r'<li>\1</li>', text, flags=re.MULTILINE)
-                text = re.sub(r'(<li>.*</li>)', r'<ul>\1</ul>', text, flags=re.DOTALL)
-                
-                # Sauts de ligne
-                text = text.replace('\n', '<br>')
+
+                # Listes à puces - grouper les éléments consécutifs
+                def replace_list_block(match):
+                    items = match.group(0)
+                    # Convertir chaque ligne "- item" en "<li>item</li>"
+                    list_items = re.sub(r'^- (.+)$', r'<li>\1</li>', items, flags=re.MULTILINE)
+                    return f'<ul>{list_items}</ul>'
+
+                # Trouver les blocs de listes consécutifs
+                text = re.sub(r'(^- .+$(\n^- .+$)*)', replace_list_block, text, flags=re.MULTILINE)
+
+                # Sauts de ligne (mais pas dans les listes)
+                text = re.sub(r'\n(?!</li>)(?!<li>)(?!</ul>)(?!<ul>)', '<br>', text)
                 
                 html_parts.append(f'<div class="text-block">{text}</div>')
             

@@ -37,8 +37,11 @@ class DatabaseManager:
         try:
             self.connection = sqlite3.connect(self.db_path)
             self.connection.row_factory = sqlite3.Row
-            
+
             cursor = self.connection.cursor()
+
+            # Activer les clés étrangères pour que ON DELETE CASCADE fonctionne
+            cursor.execute("PRAGMA foreign_keys = ON")
             
             # Table conversations
             cursor.execute("""

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar
 )
 from PyQt6.QtCore import Qt, QTimer, QMutex
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtGui import QAction, QKeySequence, QKeyEvent, QShortcut
 from .sidebar_widget import SidebarWidget
 from .chat_widget import ChatWidget
 from .input_widget import InputWidget, estimate_tokens
@@ -59,9 +59,10 @@ class MainWindow(QMainWindow):
         
         self.setup_ui()
         self.setup_menus()
+        self.setup_shortcuts()
         self.connect_signals()
         self.load_initial_data()
-        
+
         self.logger.debug("[MAIN_WINDOW] Fenêtre principale initialisée")
     
     def setup_ui(self):
@@ -87,7 +88,7 @@ class MainWindow(QMainWindow):
         center_layout.setContentsMargins(5, 5, 5, 5)
 
         # Récupérer le thème Highlight.js depuis les settings
-        hljs_theme = self.controller.settings.get_hljs_theme()
+        hljs_theme = self.controller.settings_manager.get_hljs_theme()
         self.chat_widget = ChatWidget(hljs_theme=hljs_theme)
         center_layout.addWidget(self.chat_widget, stretch=1)
         
@@ -148,13 +149,39 @@ class MainWindow(QMainWindow):
         about_action = QAction("ℹ️ About", self)
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
-    
+
+    def setup_shortcuts(self):
+        """Configure les raccourcis clavier globaux."""
+        # Escape pour annuler le streaming
+        escape_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
+        escape_shortcut.activated.connect(self._on_cancel_streaming)
+
+        # Ctrl+F pour focus sur la recherche
+        search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        search_shortcut.activated.connect(self._on_focus_search)
+
+    def _on_cancel_streaming(self):
+        """Annule le streaming en cours si actif."""
+        if self.api_worker and self.api_worker.is_running():
+            self.logger.debug("[MAIN_WINDOW] Annulation du streaming par l'utilisateur (Escape)")
+            self._cleanup_worker()
+            self.chat_widget.hide_typing_indicator()
+            self.input_widget.set_enabled(True)
+            self.current_response = ""
+            self.status_bar.showMessage("⚠️ Response cancelled", 3000)
+
+    def _on_focus_search(self):
+        """Donne le focus à la barre de recherche."""
+        self.sidebar.search_input.setFocus()
+        self.sidebar.search_input.selectAll()
+
     def connect_signals(self):
         """Connecte les signaux entre composants."""
         # Sidebar
         self.sidebar.conversation_selected.connect(self._on_conversation_selected)
         self.sidebar.new_conversation_requested.connect(self._on_new_conversation)
         self.sidebar.delete_conversations_requested.connect(self._on_delete_conversations)
+        self.sidebar.rename_conversation_requested.connect(self._on_rename_conversation)
         
         # Input
         self.input_widget.message_submitted.connect(self._on_message_submitted)
@@ -204,6 +231,15 @@ class MainWindow(QMainWindow):
         """Supprime des conversations."""
         self.controller.delete_conversations(conv_ids)
         self.chat_widget.clear_conversation()
+
+    def _on_rename_conversation(self, conv_id: int, new_title: str):
+        """Renomme une conversation."""
+        success = self.controller.db_manager.update_conversation_title(conv_id, new_title)
+        if success:
+            self.controller.refresh_conversations_list()
+            self.status_bar.showMessage(f"Session renamed to '{new_title}'", 3000)
+        else:
+            QMessageBox.warning(self, "Error", "Failed to rename the session.")
     
     def _on_conversations_list_updated(self, conversations: list):
         """Met à jour la liste des conversations."""
@@ -576,6 +612,21 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Événement de fermeture de la fenêtre."""
+        # Vérifier si un streaming est en cours
+        if self.api_worker and self.api_worker.is_running():
+            reply = QMessageBox.question(
+                self,
+                "Streaming in Progress",
+                "A response is currently being generated.\n\n"
+                "Do you really want to quit?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+
         # Arrêter le worker si actif
         self._cleanup_worker()
 
