@@ -16,8 +16,8 @@ from pathlib import Path
 
 block_cipher = None
 
-# Répertoire de base du projet
-project_dir = Path(__file__).parent
+# Répertoire de base du projet (SPECPATH est fourni par PyInstaller)
+project_dir = Path(SPECPATH)
 
 # Analyse des dépendances
 a = Analysis(
