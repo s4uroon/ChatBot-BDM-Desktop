@@ -19,10 +19,10 @@ La version portable de ChatBot BDM Desktop offre les avantages suivants :
 
 - ✅ **Aucune installation requise** - Double-clic sur l'exe et c'est parti
 - ✅ **Portable** - Peut être placé n'importe où (disque dur, clé USB, réseau)
-- ✅ **Données locales** - Toutes les données sont stockées à côté de l'exe
-- ✅ **Pas de traces système** - Aucune modification du registre ou des dossiers système
-- ✅ **Multi-instance** - Plusieurs copies peuvent coexister indépendamment
-- ✅ **Facile à désinstaller** - Supprimez simplement le dossier
+- ✅ **Données utilisateur sécurisées** - Base de données et paramètres dans le profil utilisateur
+- ✅ **Fichiers temporaires portables** - Logs et exports à côté de l'exe
+- ✅ **Pas de modification du registre** - Aucune modification du registre Windows
+- ✅ **Facile à désinstaller** - Supprimez le dossier et nettoyez ~/.ChatBot_BDM_Desktop/
 
 ---
 
@@ -106,9 +106,7 @@ Après compilation réussie, vous trouverez dans `dist/ChatBot BDM Desktop/` :
 ```
 ChatBot BDM Desktop/
 ├── ChatBot BDM Desktop.exe    ← Exécutable principal
-├── data/                       ← Données de l'application (créé au premier lancement)
-│   ├── chatbot.db             ← Base de données des conversations
-│   ├── settings.ini           ← Configuration de l'application
+├── data/                       ← Fichiers temporaires (créé au premier lancement)
 │   ├── logs/                  ← Fichiers de logs (si activés)
 │   └── exports/               ← Exports des conversations
 ├── _internal/                  ← Bibliothèques et dépendances (PyInstaller)
@@ -118,12 +116,38 @@ ChatBot BDM Desktop/
 └── README.txt                  ← Instructions pour l'utilisateur
 ```
 
+**⚠️ IMPORTANT - Stockage des données utilisateur :**
+
+Les fichiers de données utilisateur sont stockés dans un répertoire caché du profil utilisateur :
+
+```
+Windows: C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\
+├── chatbot.db                 ← Base de données des conversations
+└── settings.ini               ← Configuration de l'application
+
+Linux/Mac: ~/.ChatBot_BDM_Desktop/
+├── chatbot.db
+└── settings.ini
+```
+
 ### Détails importants :
 
 - **ChatBot BDM Desktop.exe** : L'exécutable à lancer
-- **data/** : Dossier contenant TOUTES les données utilisateur
+- **data/** : Dossier contenant les logs et exports (fichiers temporaires/portables)
+- **~/.ChatBot_BDM_Desktop/** : Répertoire utilisateur caché contenant la base de données et les paramètres
 - **_internal/** : Dépendances (ne pas modifier)
 - **README.txt** : Instructions pour les utilisateurs finaux
+
+### Pourquoi cette séparation ?
+
+- **chatbot.db et settings.ini** sont stockés dans le profil utilisateur pour :
+  - Garantir la persistance des données même si l'exécutable est déplacé
+  - Éviter les problèmes de permissions sur certains emplacements (clé USB, réseau)
+  - Permettre la sauvegarde facile via les outils de backup utilisateur
+
+- **logs/ et exports/** restent portables pour :
+  - Faciliter le débogage lors du support technique
+  - Permettre l'export des conversations directement depuis le dossier portable
 
 ---
 
@@ -168,13 +192,23 @@ Incluez ces instructions avec la distribution :
 === UTILISATION ===
 
 - L'application se lance directement, aucune installation nécessaire
-- Toutes vos données sont dans le dossier "data"
-- Vous pouvez déplacer tout le dossier où vous voulez
+- Vos conversations et paramètres sont stockés dans : C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\
+- Les logs et exports sont dans le dossier "data" à côté de l'exécutable
+- Vous pouvez déplacer le dossier de l'application où vous voulez
+
+=== STOCKAGE DES DONNÉES ===
+
+- Base de données (chatbot.db) : C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\chatbot.db
+- Paramètres (settings.ini) : C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\settings.ini
+- Logs : Dans le dossier "data/logs" à côté de l'exécutable
+- Exports : Dans le dossier "data/exports" à côté de l'exécutable
 
 === DÉSINSTALLATION ===
 
-- Supprimez simplement le dossier complet
-- Aucun fichier ne reste sur le système
+Pour désinstaller complètement l'application :
+
+1. Supprimez le dossier de l'application
+2. Supprimez le dossier C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\ (contient vos données)
 ```
 
 ---
@@ -296,10 +330,11 @@ exe = EXE(
 | Fonctionnalité | Version normale | Version portable |
 |----------------|-----------------|------------------|
 | Installation | Non requise | Non requise |
-| Données | `~/.ChatBot_BDM_Desktop/` | `./data/` |
-| Mobilité | Fixe | Complètement mobile |
-| Multi-instance | Non (base de données partagée) | Oui (données séparées) |
-| Traces système | Oui (dossier home) | Non |
+| Base de données & Paramètres | `~/.ChatBot_BDM_Desktop/` | `~/.ChatBot_BDM_Desktop/` |
+| Logs & Exports | `~/.ChatBot_BDM_Desktop/` | `./data/` (à côté de l'exe) |
+| Mobilité de l'exe | Fixe | Complètement mobile |
+| Données utilisateur | Profil utilisateur | Profil utilisateur |
+| Traces système | Oui (dossier home) | Oui (dossier home pour DB/settings) |
 | Taille | ~5 Mo (script) | ~150-200 Mo (exe+deps) |
 
 ---
@@ -328,8 +363,21 @@ def is_portable_mode() -> bool:
 
 La classe `UserPaths` (dans `core/paths.py`) gère automatiquement :
 
-- **Mode normal** : `~/.ChatBot_BDM_Desktop/`
-- **Mode portable** : `{exe_dir}/data/`
+**Mode normal :**
+- Base de données : `~/.ChatBot_BDM_Desktop/chatbot.db`
+- Paramètres : `~/.ChatBot_BDM_Desktop/settings.ini`
+- Logs : `~/.ChatBot_BDM_Desktop/logs/`
+- Exports : `~/.ChatBot_BDM_Desktop/exports/`
+
+**Mode portable :**
+- Base de données : `~/.ChatBot_BDM_Desktop/chatbot.db` (TOUJOURS dans le profil utilisateur)
+- Paramètres : `~/.ChatBot_BDM_Desktop/settings.ini` (TOUJOURS dans le profil utilisateur)
+- Logs : `{exe_dir}/data/logs/` (portable)
+- Exports : `{exe_dir}/data/exports/` (portable)
+
+**Raison de cette architecture :**
+- Les données critiques (DB, settings) restent dans le profil utilisateur pour garantir leur persistance et éviter les problèmes de permissions
+- Les fichiers temporaires (logs, exports) peuvent être portables pour faciliter le support technique
 
 ### PyInstaller - Comment ça marche
 
