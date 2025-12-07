@@ -7,9 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2025-12-07
+
+### üé® Major Update: Highlight.js Bundling & Theme Toggle
+
+This release adds local Highlight.js bundling and theme switching capabilities, eliminating the need for CDN dependency and allowing users to choose between light and dark syntax highlighting themes.
+
+---
+
+## üéØ New Features
+
+### Added
+
+#### **Local Highlight.js Bundling**
+- **Downloaded and bundled Highlight.js locally** (v11.9.0)
+  - Core library: `highlight.min.js` (119KB)
+  - Language modules: python, bash, perl, php, powershell, java, json, javascript, sql, cpp, c, csharp, ruby, go, rust, xml
+  - No internet connection required for syntax highlighting
+  - Faster loading times (no CDN latency)
+  - **Files**: `assets/highlightjs/`
+
+#### **Light/Dark Theme Toggle**
+- **Added theme selector in Settings dialog**
+  - üåô Dark theme (atom-one-dark) - default
+  - ‚òÄÔ∏è Light theme (atom-one-light)
+  - Live preview when switching themes
+  - Persisted in user settings
+  - **Files**: `ui/settings_dialog.py`, `core/settings_manager.py`
+
+- **Implemented theme switching logic**
+  - HTMLGenerator now accepts `hljs_theme` parameter
+  - ChatWidget can dynamically change themes via `set_hljs_theme()`
+  - Automatic re-rendering when theme changes
+  - **Files**: `utils/html_generator.py`, `ui/chat_widget.py`, `ui/main_window.py`
+
+### Technical Improvements
+
+#### **Code Architecture**
+- Added `_load_hljs_core()` method to read bundled JS
+- Added `_load_hljs_languages()` method to load language modules
+- Added `_load_hljs_theme_css()` method to load theme stylesheets
+- Theme switching without page reload
+- **Files**: `utils/html_generator.py`
+
+#### **Settings Management**
+- Added `appearance/hljs_theme` setting (default: 'dark')
+- Added `get_hljs_theme()` and `set_hljs_theme()` methods
+- Theme validation (only 'light' or 'dark' allowed)
+- **Files**: `core/settings_manager.py`
+
+---
+
+## üì¶ Assets Added
+
+### Highlight.js Files
+- **Core**: `assets/highlightjs/highlight.min.js`
+- **Themes**:
+  - `assets/highlightjs/styles/atom-one-dark.min.css`
+  - `assets/highlightjs/styles/atom-one-light.min.css`
+- **Languages** (17 total): python, bash, perl, php, powershell, java, json, javascript, sql, cpp, c, csharp, ruby, go, rust, xml
+
+---
+
+## üîß Modified Files
+
+| File | Changes |
+|------|---------|
+| `utils/html_generator.py` | Added local file loading methods, removed CDN links |
+| `ui/chat_widget.py` | Added hljs_theme parameter, set_hljs_theme() method |
+| `ui/main_window.py` | Pass theme to ChatWidget, handle theme changes |
+| `ui/settings_dialog.py` | Added theme selector ComboBox |
+| `core/settings_manager.py` | Added hljs_theme setting with getters/setters |
+
+---
+
+## ‚úÖ Resolved Issues
+
+- ‚úì Removed CDN dependency for Highlight.js
+- ‚úì No internet required for syntax highlighting
+- ‚úì Users can now choose preferred code theme
+- ‚úì Improved loading performance (local files)
+
+---
+
 ## [1.1.0] - 2025-12-07
 
-### <â Major Update: Stability, Performance & UX Improvements
+### <ÔøΩ Major Update: Stability, Performance & UX Improvements
 
 This release focuses on critical bug fixes, performance optimizations, and significant user experience enhancements. The application is now more stable, secure, and user-friendly.
 
@@ -68,7 +151,7 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ---
 
-## =· Feature Enhancements (Priority 3)
+## =ÔøΩ Feature Enhancements (Priority 3)
 
 ### Added
 
@@ -119,7 +202,7 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ---
 
-## =  Technical Improvements
+## =ÔøΩ Technical Improvements
 
 ### Code Quality
 - **Before**: 2 bare exception handlers
@@ -141,7 +224,7 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ---
 
-## <Ø Impact Summary
+## <ÔøΩ Impact Summary
 
 ### Stability & Security
 -  Eliminated race condition crashes
@@ -162,7 +245,7 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ---
 
-## =¡ Modified Files
+## =ÔøΩ Modified Files
 
 | File | Changes |
 |------|---------|
@@ -179,9 +262,9 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ---
 
-## <∆ Quality Score
+## <ÔøΩ Quality Score
 
-**Overall Quality: 7.5/10 í 9.0/10** <â
+**Overall Quality: 7.5/10 ÔøΩ 9.0/10** <ÔøΩ
 
 | Criteria | Before | After |
 |----------|--------|-------|
@@ -197,7 +280,6 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ## =. Known Limitations
 
-- Highlight.js still loaded from CDN (requires internet for syntax highlighting)
 - No unit tests added (existing limitation)
 - Token estimation is approximate (1 token H 4 chars)
 
@@ -229,12 +311,14 @@ This release focuses on critical bug fixes, performance optimizations, and signi
 
 ## Future Roadmap
 
-### Planned for 1.2.0
-- [ ] Bundle Highlight.js locally (no CDN dependency)
+### Completed in 1.2.0
+- [x] Bundle Highlight.js locally (no CDN dependency)
+- [x] Light/dark theme toggle
+
+### Planned for 1.3.0
 - [ ] Unit test suite (50%+ coverage)
 - [ ] Message editing capability
 - [ ] Image/file upload support
-- [ ] Light/dark theme toggle
 - [ ] Conversation versioning
 - [ ] Export with custom templates
 

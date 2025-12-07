@@ -32,7 +32,8 @@ class SettingsManager:
         'appearance/color_string': '#ce9178',
         'appearance/color_number': '#b5cea8',
         'appearance/color_function': '#dcdcaa',
-        
+        'appearance/hljs_theme': 'dark',  # Thème Highlight.js: 'light' ou 'dark'
+
         # UI Settings
         'ui/window_width': 1200,
         'ui/window_height': 800,
@@ -188,7 +189,18 @@ class SettingsManager:
         self.set_color_number(self.DEFAULTS['appearance/color_number'])
         self.set_color_function(self.DEFAULTS['appearance/color_function'])
         self.logger.debug("[SETTINGS] Couleurs réinitialisées aux valeurs par défaut")
-    
+
+    def get_hljs_theme(self) -> str:
+        """Retourne le thème Highlight.js ('light' ou 'dark')."""
+        return self._get('appearance/hljs_theme', str)
+
+    def set_hljs_theme(self, theme: str):
+        """Définit le thème Highlight.js."""
+        if theme not in ['light', 'dark']:
+            self.logger.warning(f"[SETTINGS] Thème invalide: {theme}, utilisation de 'dark'")
+            theme = 'dark'
+        self._set('appearance/hljs_theme', theme)
+
     # === UI SETTINGS ===
     
     def get_window_size(self) -> tuple[int, int]:

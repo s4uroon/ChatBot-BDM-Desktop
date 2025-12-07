@@ -54,12 +54,13 @@ class ChatWidget(QWidget):
     # Signal pour demander l'export de la session courante
     export_current_session = pyqtSignal()
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, hljs_theme: str = 'dark'):
         super().__init__(parent)
         self.logger = get_logger()
 
         # Générateurs
-        self.html_generator = HTMLGenerator()
+        self.hljs_theme = hljs_theme
+        self.html_generator = HTMLGenerator(hljs_theme=hljs_theme)
         self.custom_colors = None
 
         # Messages actuels
@@ -352,14 +353,33 @@ class ChatWidget(QWidget):
     def set_custom_colors(self, colors: Dict[str, str]):
         """
         Définit les couleurs personnalisées pour la coloration syntaxique.
-        
+
         Args:
             colors: Dictionnaire de couleurs
         """
         self.custom_colors = colors
         if self.current_messages:
             self._render_html()
-    
+
+    def set_hljs_theme(self, theme: str):
+        """
+        Change le thème Highlight.js (light/dark).
+
+        Args:
+            theme: 'light' ou 'dark'
+        """
+        if theme not in ['light', 'dark']:
+            self.logger.warning(f"[CHAT_WIDGET] Thème invalide: {theme}, utilisation de 'dark'")
+            theme = 'dark'
+
+        self.hljs_theme = theme
+        self.html_generator = HTMLGenerator(hljs_theme=theme)
+        self.logger.debug(f"[CHAT_WIDGET] Thème Highlight.js changé: {theme}")
+
+        # Re-render si il y a des messages
+        if self.current_messages:
+            self._render_html()
+
     def export_to_html(self, filepath: str) -> bool:
         """
         Exporte la conversation en HTML.
