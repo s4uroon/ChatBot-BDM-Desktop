@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from ui.main_window import MainWindow
 from core.logger import LoggerSetup
+from core.paths import init_user_paths
 
 
 def parse_arguments():
@@ -39,9 +40,9 @@ Exemples d'utilisation:
     parser.add_argument(
         '--db',
         type=str,
-        default='chatbot.db',
+        default=None,
         metavar='PATH',
-        help='Chemin vers le fichier de base de données (défaut: chatbot.db)'
+        help='Chemin vers le fichier de base de données (défaut: ~/.ChatBot_BDM_Desktop/chatbot.db)'
     )
     
     parser.add_argument(
@@ -307,14 +308,19 @@ def main():
     logger_setup.setup_console_logging(debug=args.debug)
     
     logger = logger_setup.get_logger()
-    
+
+    # Initialisation des chemins utilisateur
+    user_paths = init_user_paths(custom_db_path=args.db)
+
     # Log du démarrage
     logger.info("="*70)
     logger.info("CHATBOT DESKTOP - DÉMARRAGE")
     logger.info("="*70)
     logger.info(f"Version: 1.0.0")
     logger.info(f"Mode debug: {'ACTIVÉ' if args.debug else 'DÉSACTIVÉ'}")
-    logger.info(f"Base de données: {args.db}")
+    logger.info(f"Répertoire application: {user_paths.get_app_dir()}")
+    logger.info(f"Base de données: {user_paths.get_db_path()}")
+    logger.info(f"Fichier de configuration: {user_paths.get_settings_file()}")
     logger.info("="*70)
     
     # Création de l'application Qt
@@ -339,8 +345,11 @@ def main():
     try:
         # Création de la fenêtre principale
         logger.debug("Création de la fenêtre principale...")
-        window = MainWindow()
-        
+        window = MainWindow(
+            db_path=user_paths.get_db_path(),
+            settings_file=user_paths.get_settings_file()
+        )
+
         # Affichage
         window.show()
         logger.info("✅ Application démarrée avec succès")
