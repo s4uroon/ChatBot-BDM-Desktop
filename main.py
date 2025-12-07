@@ -1,0 +1,370 @@
+"""
+main.py
+=======
+Point d'entrée principal de l'application Chatbot Desktop
+"""
+
+import sys
+import argparse
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
+from ui.main_window import MainWindow
+from core.logger import LoggerSetup
+
+
+def parse_arguments():
+    """
+    Parse les arguments de ligne de commande.
+    
+    Returns:
+        Namespace avec les arguments
+    """
+    parser = argparse.ArgumentParser(
+        description='Chatbot Desktop - Assistant virtuel professionnel',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Exemples d'utilisation:
+  python main.py                    # Lancement normal
+  python main.py --debug            # Mode debug avec logs console
+  python main.py --db custom.db     # Base de données personnalisée
+        """
+    )
+    
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Active le mode debug avec logs détaillés dans la console'
+    )
+    
+    parser.add_argument(
+        '--db',
+        type=str,
+        default='chatbot.db',
+        metavar='PATH',
+        help='Chemin vers le fichier de base de données (défaut: chatbot.db)'
+    )
+    
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='Chatbot Desktop v1.0.0'
+    )
+    
+    return parser.parse_args()
+
+
+def setup_application_style():
+    """Configure le style global de l'application - MODE SOMBRE."""
+    # Style Qt moderne - Thème Sombre
+    style = """
+    /* === FENÊTRE PRINCIPALE === */
+    QMainWindow {
+        background-color: #1e1e1e;
+    }
+    
+    QWidget {
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+    }
+    
+    /* === MENUS === */
+    QMenuBar {
+        background-color: #2d2d2d;
+        border-bottom: 1px solid #3d3d3d;
+        padding: 4px;
+        color: #e0e0e0;
+    }
+    
+    QMenuBar::item {
+        padding: 6px 12px;
+        background: transparent;
+        color: #e0e0e0;
+    }
+    
+    QMenuBar::item:selected {
+        background-color: #3d3d3d;
+        color: #ffffff;
+    }
+    
+    QMenu {
+        background-color: #2d2d2d;
+        border: 1px solid #3d3d3d;
+        color: #e0e0e0;
+    }
+    
+    QMenu::item {
+        padding: 8px 25px;
+        color: #e0e0e0;
+    }
+    
+    QMenu::item:selected {
+        background-color: #3d3d3d;
+        color: #ffffff;
+    }
+    
+    /* === BARRE DE STATUT === */
+    QStatusBar {
+        background-color: #2d2d2d;
+        border-top: 1px solid #3d3d3d;
+        font-size: 12px;
+        color: #b0b0b0;
+    }
+    
+    /* === SPLITTER === */
+    QSplitter::handle {
+        background-color: #3d3d3d;
+        width: 2px;
+    }
+    
+    QSplitter::handle:hover {
+        background-color: #4d4d4d;
+    }
+    
+    /* === GROUPBOX === */
+    QGroupBox {
+        border: 1px solid #3d3d3d;
+        border-radius: 4px;
+        margin-top: 10px;
+        padding-top: 10px;
+        font-weight: bold;
+        color: #e0e0e0;
+        background-color: #252525;
+    }
+    
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 5px;
+        color: #4CAF50;
+    }
+    
+    /* === SCROLLBAR === */
+    QScrollBar:vertical {
+        border: none;
+        background: #2d2d2d;
+        width: 12px;
+        border-radius: 6px;
+    }
+    
+    QScrollBar::handle:vertical {
+        background: #4d4d4d;
+        border-radius: 6px;
+        min-height: 20px;
+    }
+    
+    QScrollBar::handle:vertical:hover {
+        background: #5d5d5d;
+    }
+    
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+        height: 0px;
+    }
+    
+    QScrollBar:horizontal {
+        border: none;
+        background: #2d2d2d;
+        height: 12px;
+        border-radius: 6px;
+    }
+    
+    QScrollBar::handle:horizontal {
+        background: #4d4d4d;
+        border-radius: 6px;
+        min-width: 20px;
+    }
+    
+    QScrollBar::handle:horizontal:hover {
+        background: #5d5d5d;
+    }
+    
+    /* === LABELS === */
+    QLabel {
+        color: #e0e0e0;
+        background-color: transparent;
+    }
+    
+    /* === INPUTS === */
+    QLineEdit, QTextEdit {
+        background-color: #2d2d2d;
+        border: 1px solid #3d3d3d;
+        border-radius: 4px;
+        padding: 6px;
+        color: #e0e0e0;
+        selection-background-color: #4CAF50;
+        selection-color: #ffffff;
+    }
+    
+    QLineEdit:focus, QTextEdit:focus {
+        border: 1px solid #4CAF50;
+    }
+    
+    QLineEdit:disabled, QTextEdit:disabled {
+        background-color: #252525;
+        color: #707070;
+    }
+    
+    /* === BOUTONS === */
+    QPushButton {
+        background-color: #3d3d3d;
+        color: #e0e0e0;
+        border: 1px solid #4d4d4d;
+        border-radius: 4px;
+        padding: 8px 16px;
+        font-weight: normal;
+    }
+    
+    QPushButton:hover {
+        background-color: #4d4d4d;
+        border: 1px solid #5d5d5d;
+    }
+    
+    QPushButton:pressed {
+        background-color: #2d2d2d;
+    }
+    
+    QPushButton:disabled {
+        background-color: #252525;
+        color: #606060;
+        border: 1px solid #353535;
+    }
+    
+    /* === CHECKBOX === */
+    QCheckBox {
+        color: #e0e0e0;
+        spacing: 8px;
+    }
+    
+    QCheckBox::indicator {
+        width: 18px;
+        height: 18px;
+        border: 1px solid #4d4d4d;
+        border-radius: 3px;
+        background-color: #2d2d2d;
+    }
+    
+    QCheckBox::indicator:checked {
+        background-color: #4CAF50;
+        border: 1px solid #4CAF50;
+    }
+    
+    QCheckBox::indicator:hover {
+        border: 1px solid #5d5d5d;
+    }
+    
+    /* === TABS === */
+    QTabWidget::pane {
+        border: 1px solid #3d3d3d;
+        background-color: #252525;
+    }
+    
+    QTabBar::tab {
+        background-color: #2d2d2d;
+        color: #b0b0b0;
+        padding: 8px 20px;
+        border: 1px solid #3d3d3d;
+        border-bottom: none;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+    }
+    
+    QTabBar::tab:selected {
+        background-color: #252525;
+        color: #4CAF50;
+        border-bottom: 2px solid #4CAF50;
+    }
+    
+    QTabBar::tab:hover {
+        background-color: #3d3d3d;
+    }
+    
+    /* === DIALOG === */
+    QDialog {
+        background-color: #1e1e1e;
+    }
+    
+    /* === MESSAGEBOX === */
+    QMessageBox {
+        background-color: #1e1e1e;
+    }
+    
+    QMessageBox QLabel {
+        color: #e0e0e0;
+    }
+    """
+    
+    return style
+
+
+def main():
+    """
+    Fonction principale de l'application.
+    """
+    # Parse des arguments
+    args = parse_arguments()
+    
+    # Configuration du logger
+    logger_setup = LoggerSetup()
+    logger_setup.setup_console_logging(debug=args.debug)
+    
+    logger = logger_setup.get_logger()
+    
+    # Log du démarrage
+    logger.info("="*70)
+    logger.info("CHATBOT DESKTOP - DÉMARRAGE")
+    logger.info("="*70)
+    logger.info(f"Version: 1.0.0")
+    logger.info(f"Mode debug: {'ACTIVÉ' if args.debug else 'DÉSACTIVÉ'}")
+    logger.info(f"Base de données: {args.db}")
+    logger.info("="*70)
+    
+    # Création de l'application Qt
+    app = QApplication(sys.argv)
+    
+    # Configuration de l'application
+    app.setApplicationName("ChatBot BDM Desktop")
+    app.setOrganizationName("ChatbotBDM")
+    app.setApplicationVersion("1.0.0")
+    
+    # Style global
+    app.setStyleSheet(setup_application_style())
+    
+    # Attributs Qt pour de meilleures performances (Qt6 compatible)
+    # AA_UseHighDpiPixmaps est déprécié dans Qt6 (activé par défaut)
+    # On garde seulement les attributs compatibles Qt6
+    try:
+        app.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+    except AttributeError:
+        pass  # Ignorer si l'attribut n'existe pas
+    
+    try:
+        # Création de la fenêtre principale
+        logger.debug("Création de la fenêtre principale...")
+        window = MainWindow()
+        
+        # Affichage
+        window.show()
+        logger.info("✅ Application démarrée avec succès")
+        
+        # Boucle d'événements
+        exit_code = app.exec()
+        
+        logger.info(f"Application fermée avec le code: {exit_code}")
+        sys.exit(exit_code)
+    
+    except Exception as e:
+        logger.error("ERREUR FATALE lors du démarrage", exc_info=True)
+        
+        # Affichage d'une erreur à l'utilisateur
+        from PyQt6.QtWidgets import QMessageBox
+        QMessageBox.critical(
+            None,
+            "Erreur Fatale",
+            f"Impossible de démarrer l'application:\n\n{str(e)}\n\n"
+            "Consultez les logs pour plus de détails."
+        )
+        
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

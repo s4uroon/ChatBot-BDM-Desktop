@@ -1,0 +1,21 @@
+# Chatbot Desktop - Requirements
+# Python 3.8+
+
+# Interface graphique
+PyQt6==6.6.1
+PyQt6-WebEngine==6.6.0
+
+# API Client OpenAI
+openai==1.12.0
+
+# HTTP Client avec support SSL personnalisé
+httpx==0.26.0
+
+# Database (inclus dans Python standard library)
+# sqlite3 - pas besoin d'installation
+
+# Logging (inclus dans Python standard library)
+# logging - pas besoin d'installation
+
+# Argparse (inclus dans Python standard library)
+# argparse - pas besoin d'installation
