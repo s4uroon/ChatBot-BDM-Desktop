@@ -5,10 +5,11 @@ Widget de la barre latérale avec historique des conversations
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QListWidget, 
-    QPushButton, QListWidgetItem, QLabel, QMessageBox, QLineEdit
+    QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
+    QPushButton, QListWidgetItem, QLabel, QMessageBox, QLineEdit,
+    QInputDialog, QMenu
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont
 from datetime import datetime
 from typing import List, Optional
@@ -71,12 +72,21 @@ class SidebarWidget(QWidget):
     conversation_selected = pyqtSignal(int)  # ID de la conversation sélectionnée
     new_conversation_requested = pyqtSignal()
     delete_conversations_requested = pyqtSignal(list)  # Liste des IDs à supprimer
+    rename_conversation_requested = pyqtSignal(int, str)  # ID et nouveau titre
     search_requested = pyqtSignal(str)  # Terme de recherche
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.logger = get_logger()
         self.all_conversations = []  # Stockage de toutes les conversations
+
+        # Timer pour debounce de la recherche (évite une requête DB à chaque caractère)
+        self.search_timer = QTimer()
+        self.search_timer.setSingleShot(True)
+        self.search_timer.setInterval(300)  # 300ms de délai
+        self.search_timer.timeout.connect(self._do_search)
+        self._pending_search = ""
+
         self.setup_ui()
     
     def setup_ui(self):
@@ -114,17 +124,14 @@ class SidebarWidget(QWidget):
         
         layout.addLayout(search_layout)
         
-        # Message "No sessions found" juste après la recherche
-        self.info_label = QLabel("No sessions found")
-        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_label.setStyleSheet("color: #707070; padding: 10px;")
-        self.info_label.hide()  # Caché par défaut
-        layout.addWidget(self.info_label)
         
         # Liste des conversations avec sélection multiple
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self.list_widget.itemClicked.connect(self._on_item_clicked)
+        self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
+        self.list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
         self.list_widget.setStyleSheet("""
             QListWidget {
                 border: 1px solid #3d3d3d;
@@ -146,7 +153,14 @@ class SidebarWidget(QWidget):
         """)
         
         layout.addWidget(self.list_widget)
-        
+
+        # Label d'information (affiché quand pas de sessions)
+        self.info_label = QLabel("No sessions")
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.info_label.setStyleSheet("color: #707070; padding: 10px;")
+        self.info_label.hide()  # Caché par défaut
+        layout.addWidget(self.info_label)
+
         # Boutons en bas : New (gauche) et Delete (droite)
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(5)
@@ -193,12 +207,6 @@ class SidebarWidget(QWidget):
         buttons_layout.addWidget(delete_btn)
         
         layout.addLayout(buttons_layout)
-        
-        # Label d'information
-        self.info_label = QLabel("No sessions")
-        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_label.setStyleSheet("color: #707070; padding: 10px;")
-        layout.addWidget(self.info_label)
     
     def load_conversations(self, conversations: List[dict]):
         """
@@ -239,10 +247,18 @@ class SidebarWidget(QWidget):
         self.logger.debug(f"[SIDEBAR] {len(conversations)} conversation(s) affichée(s)")
     
     def _on_search_changed(self, search_text: str):
-        """Filtre les conversations selon le texte de recherche."""
+        """Filtre les conversations selon le texte de recherche (avec debounce)."""
+        self._pending_search = search_text
+        # Redémarrer le timer à chaque frappe (debounce)
+        self.search_timer.stop()
+        self.search_timer.start()
+
+    def _do_search(self):
+        """Exécute la recherche après le délai de debounce."""
+        search_text = self._pending_search
         # Émettre le signal pour que MainWindow fasse une vraie recherche en DB
         self.search_requested.emit(search_text)
-        self.logger.debug(f"[SIDEBAR] Search requested: '{search_text}'")
+        self.logger.debug(f"[SIDEBAR] Search executed: '{search_text}'")
     
     def _add_conversation_item(self, conv_id: int, title: str, created_at: str):
         """Ajoute un item de conversation à la liste."""
@@ -260,12 +276,74 @@ class SidebarWidget(QWidget):
     def _on_item_clicked(self, item: QListWidgetItem):
         """Gère le clic sur un item (sélection simple)."""
         selected_items = self.list_widget.selectedItems()
-        
+
         # Si une seule conversation sélectionnée, émettre le signal
         if len(selected_items) == 1:
             conv_id = item.data(Qt.ItemDataRole.UserRole)
             self.conversation_selected.emit(conv_id)
             self.logger.debug(f"[SIDEBAR] Conversation sélectionnée: ID {conv_id}")
+
+    def _on_item_double_clicked(self, item: QListWidgetItem):
+        """Gère le double-clic sur un item (renommage)."""
+        conv_id = item.data(Qt.ItemDataRole.UserRole)
+        self._rename_conversation(conv_id)
+
+    def _show_context_menu(self, position):
+        """Affiche le menu contextuel sur un item."""
+        item = self.list_widget.itemAt(position)
+        if not item:
+            return
+
+        conv_id = item.data(Qt.ItemDataRole.UserRole)
+
+        menu = QMenu(self)
+
+        # Action Renommer
+        rename_action = menu.addAction("✏️ Rename")
+        rename_action.triggered.connect(lambda: self._rename_conversation(conv_id))
+
+        menu.addSeparator()
+
+        # Action Supprimer
+        delete_action = menu.addAction("🗑️ Delete")
+        delete_action.triggered.connect(lambda: self._delete_single_conversation(conv_id))
+
+        menu.exec(self.list_widget.mapToGlobal(position))
+
+    def _rename_conversation(self, conv_id: int):
+        """Ouvre une boîte de dialogue pour renommer une conversation."""
+        # Trouver le titre actuel
+        current_title = ""
+        for conv in self.all_conversations:
+            if conv['id'] == conv_id:
+                current_title = conv['title']
+                break
+
+        new_title, ok = QInputDialog.getText(
+            self,
+            "Rename Session",
+            "Enter the new title:",
+            QLineEdit.EchoMode.Normal,
+            current_title
+        )
+
+        if ok and new_title.strip():
+            self.rename_conversation_requested.emit(conv_id, new_title.strip())
+            self.logger.debug(f"[SIDEBAR] Renommage demandé: ID {conv_id} -> '{new_title}'")
+
+    def _delete_single_conversation(self, conv_id: int):
+        """Supprime une seule conversation."""
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            "Do you really want to delete this session?\n"
+            "This action is irreversible.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.delete_conversations_requested.emit([conv_id])
     
     def _on_delete_clicked(self):
         """Gère le clic sur le bouton Supprimer."""
