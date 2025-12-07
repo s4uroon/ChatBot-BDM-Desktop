@@ -6,6 +6,7 @@ Point d'entrée principal de l'application Chatbot Desktop
 
 import sys
 import argparse
+from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from ui.main_window import MainWindow
@@ -13,10 +14,35 @@ from core.logger import LoggerSetup
 from core.paths import init_user_paths
 
 
+def is_portable_mode() -> bool:
+    """
+    Détecte si l'application doit s'exécuter en mode portable.
+
+    Le mode portable est activé si :
+    1. L'application est exécutée comme un exécutable PyInstaller (frozen)
+    2. OU un fichier marqueur 'portable.txt' existe dans le répertoire de l'exe/script
+
+    Returns:
+        True si le mode portable doit être activé, False sinon
+    """
+    # Déterminer le répertoire de l'exécutable ou du script
+    if getattr(sys, 'frozen', False):
+        # Exécuté comme exécutable PyInstaller
+        app_dir = Path(sys.executable).parent
+        # En mode frozen, activer automatiquement le mode portable
+        return True
+    else:
+        # Exécuté comme script Python
+        app_dir = Path(__file__).parent
+        # Vérifier la présence du fichier marqueur
+        portable_marker = app_dir / 'portable.txt'
+        return portable_marker.exists()
+
+
 def parse_arguments():
     """
     Parse les arguments de ligne de commande.
-    
+
     Returns:
         Namespace avec les arguments
     """
@@ -28,15 +54,16 @@ Exemples d'utilisation:
   python main.py                    # Lancement normal
   python main.py --debug            # Mode debug avec logs console
   python main.py --db custom.db     # Base de données personnalisée
+  python main.py --portable         # Force le mode portable
         """
     )
-    
+
     parser.add_argument(
         '--debug',
         action='store_true',
         help='Active le mode debug avec logs détaillés dans la console'
     )
-    
+
     parser.add_argument(
         '--db',
         type=str,
@@ -44,13 +71,19 @@ Exemples d'utilisation:
         metavar='PATH',
         help='Chemin vers le fichier de base de données (défaut: ~/.ChatBot_BDM_Desktop/chatbot.db)'
     )
-    
+
+    parser.add_argument(
+        '--portable',
+        action='store_true',
+        help='Force le mode portable (données stockées à côté de l\'exécutable)'
+    )
+
     parser.add_argument(
         '--version',
         action='version',
         version='Chatbot Desktop v1.0.0'
     )
-    
+
     return parser.parse_args()
 
 
@@ -302,21 +335,25 @@ def main():
     """
     # Parse des arguments
     args = parse_arguments()
-    
+
+    # Déterminer si on est en mode portable
+    portable = args.portable or is_portable_mode()
+
     # Configuration du logger
     logger_setup = LoggerSetup()
     logger_setup.setup_console_logging(debug=args.debug)
-    
+
     logger = logger_setup.get_logger()
 
     # Initialisation des chemins utilisateur
-    user_paths = init_user_paths(custom_db_path=args.db)
+    user_paths = init_user_paths(custom_db_path=args.db, portable_mode=portable)
 
     # Log du démarrage
     logger.info("="*70)
     logger.info("CHATBOT DESKTOP - DÉMARRAGE")
     logger.info("="*70)
     logger.info(f"Version: 1.0.0")
+    logger.info(f"Mode: {'PORTABLE' if portable else 'NORMAL'}")
     logger.info(f"Mode debug: {'ACTIVÉ' if args.debug else 'DÉSACTIVÉ'}")
     logger.info(f"Répertoire application: {user_paths.get_app_dir()}")
     logger.info(f"Base de données: {user_paths.get_db_path()}")

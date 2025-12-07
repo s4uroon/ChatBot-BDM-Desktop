@@ -3,9 +3,11 @@ core/paths.py
 =============
 Gestion centralisée des chemins de fichiers utilisateur.
 Les fichiers sont stockés dans le répertoire home de l'utilisateur.
+Supporte également le mode portable pour Windows.
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 from .logger import get_logger
@@ -15,28 +17,48 @@ class UserPaths:
     """
     Gestion des chemins pour les fichiers de données utilisateur.
 
-    Structure:
+    Structure en mode normal:
     - Windows: C:\\Users\\USERNAME\\.ChatBot_BDM_Desktop\\
     - Linux/Mac: ~/.ChatBot_BDM_Desktop/
+
+    Structure en mode portable (Windows uniquement):
+    - data/ dans le répertoire de l'exécutable
     """
 
     # Nom du répertoire de l'application (caché avec le point initial)
     APP_DIR_NAME = ".ChatBot_BDM_Desktop"
 
-    def __init__(self, custom_db_path: Optional[str] = None):
+    # Nom du répertoire en mode portable
+    PORTABLE_DIR_NAME = "data"
+
+    def __init__(self, custom_db_path: Optional[str] = None, portable_mode: bool = False):
         """
         Initialise les chemins utilisateur.
 
         Args:
             custom_db_path: Chemin personnalisé pour la base de données (optionnel)
+            portable_mode: Si True, utilise le mode portable (données à côté de l'exe)
         """
         self.logger = get_logger()
+        self.portable_mode = portable_mode
 
-        # Déterminer le répertoire home de l'utilisateur
-        self.home_dir = Path.home()
+        # Déterminer le répertoire de base selon le mode
+        if self.portable_mode:
+            # Mode portable : utiliser le répertoire de l'exécutable
+            if getattr(sys, 'frozen', False):
+                # Exécuté comme exécutable PyInstaller
+                exe_dir = Path(sys.executable).parent
+            else:
+                # Exécuté comme script Python (pour les tests)
+                exe_dir = Path(__file__).parent.parent
 
-        # Répertoire de l'application dans le home
-        self.app_dir = self.home_dir / self.APP_DIR_NAME
+            self.app_dir = exe_dir / self.PORTABLE_DIR_NAME
+            self.logger.info(f"[PATHS] MODE PORTABLE activé - Répertoire: {self.app_dir}")
+        else:
+            # Mode normal : utiliser le répertoire home de l'utilisateur
+            self.home_dir = Path.home()
+            self.app_dir = self.home_dir / self.APP_DIR_NAME
+            self.logger.info(f"[PATHS] Mode normal - Répertoire: {self.app_dir}")
 
         # Créer le répertoire s'il n'existe pas
         self._ensure_app_directory()
@@ -151,18 +173,19 @@ class UserPaths:
 _user_paths_instance: Optional[UserPaths] = None
 
 
-def init_user_paths(custom_db_path: Optional[str] = None) -> UserPaths:
+def init_user_paths(custom_db_path: Optional[str] = None, portable_mode: bool = False) -> UserPaths:
     """
     Initialise l'instance globale de UserPaths.
 
     Args:
         custom_db_path: Chemin personnalisé pour la base de données (optionnel)
+        portable_mode: Si True, utilise le mode portable (données à côté de l'exe)
 
     Returns:
         Instance de UserPaths
     """
     global _user_paths_instance
-    _user_paths_instance = UserPaths(custom_db_path)
+    _user_paths_instance = UserPaths(custom_db_path, portable_mode)
     return _user_paths_instance
 
 
