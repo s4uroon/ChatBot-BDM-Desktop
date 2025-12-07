@@ -432,9 +432,44 @@ class HTMLGenerator:
                 background: #4d4d4d;
                 border-radius: 5px;
             }
-            
+
             ::-webkit-scrollbar-thumb:hover {
                 background: #5d5d5d;
+            }
+
+            /* Indicateur de frappe */
+            .typing-indicator {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 10px 0;
+            }
+
+            .typing-dot {
+                width: 10px;
+                height: 10px;
+                background-color: #4CAF50;
+                border-radius: 50%;
+                animation: typing-bounce 1.4s infinite ease-in-out both;
+            }
+
+            .typing-dot:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            .typing-dot:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+
+            @keyframes typing-bounce {
+                0%, 80%, 100% {
+                    transform: scale(0);
+                    opacity: 0.5;
+                }
+                40% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
             }
         """
     

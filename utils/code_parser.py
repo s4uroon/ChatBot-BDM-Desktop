@@ -157,7 +157,7 @@ class CodeParser:
                 import json
                 json.loads(code)
                 return 'json'
-            except:
+            except (json.JSONDecodeError, ValueError):
                 pass
         
         # SQL

@@ -40,42 +40,56 @@ class CSSGenerator:
     def generate_css(self, custom_colors: Optional[Dict[str, str]] = None) -> str:
         """
         Génère le CSS personnalisé pour la coloration syntaxique.
-        
+
         Args:
             custom_colors: Dict {'comment': '#xxx', 'keyword': '#xxx', ...}
-        
+
         Returns:
             CSS string
         """
         # Fusionner les couleurs par défaut avec les personnalisées
         colors = self.DEFAULT_COLORS.copy()
         if custom_colors:
-            colors.update(custom_colors)
-        
+            # Valider les couleurs personnalisées avant de les utiliser
+            for key, color in custom_colors.items():
+                if self.validate_color(color):
+                    colors[key] = self.normalize_color(color)
+                else:
+                    self.logger.warning(f"[CSS_GEN] Couleur invalide ignorée: {key}={color}")
+
         css_rules = []
-        
+
         # Générer les règles CSS pour chaque type de token
         for token_type, color in colors.items():
             if token_type in self.TOKEN_CLASSES:
                 classes = self.TOKEN_CLASSES[token_type]
                 selector = ', '.join(classes)
                 css_rules.append(f"{selector} {{ color: {color} !important; }}")
-        
+
         css = "\n".join(css_rules)
         self.logger.debug(f"[CSS_GEN] CSS personnalisé généré avec {len(colors)} couleurs")
-        
+
         return css
     
     def generate_preview_css(self, colors: Dict[str, str]) -> str:
         """
         Génère un CSS pour la prévisualisation dans les paramètres - THÈME SOMBRE.
-        
+
         Args:
             colors: Dict de couleurs
-        
+
         Returns:
             CSS pour preview
         """
+        # Valider et normaliser les couleurs
+        validated_colors = {}
+        for key, color in colors.items():
+            if self.validate_color(color):
+                validated_colors[key] = self.normalize_color(color)
+            else:
+                validated_colors[key] = self.DEFAULT_COLORS.get(key, '#ffffff')
+                self.logger.warning(f"[CSS_GEN] Couleur preview invalide, utilisation de la valeur par défaut: {key}")
+
         preview_css = f"""
             .preview-container {{
                 background: #1e1e1e;
@@ -86,15 +100,15 @@ class CSSGenerator:
                 line-height: 1.6;
                 border: 1px solid #3d3d3d;
             }}
-            
-            .preview-comment {{ color: {colors.get('comment', '#6a9955')}; }}
-            .preview-keyword {{ color: {colors.get('keyword', '#569cd6')}; font-weight: bold; }}
-            .preview-string {{ color: {colors.get('string', '#ce9178')}; }}
-            .preview-number {{ color: {colors.get('number', '#b5cea8')}; }}
-            .preview-function {{ color: {colors.get('function', '#dcdcaa')}; }}
+
+            .preview-comment {{ color: {validated_colors.get('comment', '#6a9955')}; }}
+            .preview-keyword {{ color: {validated_colors.get('keyword', '#569cd6')}; font-weight: bold; }}
+            .preview-string {{ color: {validated_colors.get('string', '#ce9178')}; }}
+            .preview-number {{ color: {validated_colors.get('number', '#b5cea8')}; }}
+            .preview-function {{ color: {validated_colors.get('function', '#dcdcaa')}; }}
             .preview-text {{ color: #d4d4d4; }}
         """
-        
+
         return preview_css
     
     def get_preview_html(self, colors: Dict[str, str]) -> str:
