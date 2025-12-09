@@ -216,3 +216,31 @@ def get_user_paths() -> UserPaths:
             "Appelez init_user_paths() dans main.py avant d'utiliser get_user_paths()."
         )
     return _user_paths_instance
+
+
+def get_icon_path() -> str:
+    """
+    Retourne le chemin absolu de l'icône de l'application.
+
+    Gère automatiquement le cas où l'application est:
+    - Exécutée comme script Python (développement)
+    - Exécutée comme exécutable PyInstaller (production)
+
+    Returns:
+        str: Chemin absolu vers ChatBot_BDM_Desktop.ico
+    """
+    if getattr(sys, 'frozen', False):
+        # Exécuté comme exécutable PyInstaller
+        # Les assets sont dans _MEIPASS/assets/ ou dans le dossier de l'exe
+        if hasattr(sys, '_MEIPASS'):
+            # Mode onefile ou pendant l'extraction
+            base_path = Path(sys._MEIPASS)
+        else:
+            # Mode onedir
+            base_path = Path(sys.executable).parent
+    else:
+        # Exécuté comme script Python
+        base_path = Path(__file__).parent.parent
+
+    icon_path = base_path / 'assets' / 'ChatBot_BDM_Desktop.ico'
+    return str(icon_path.resolve())

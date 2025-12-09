@@ -5,12 +5,13 @@ Fenêtre principale de l'application
 """
 
 from typing import Optional
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar
 )
 from PyQt6.QtCore import Qt, QTimer, QMutex
-from PyQt6.QtGui import QAction, QKeySequence, QKeyEvent, QShortcut
+from PyQt6.QtGui import QAction, QKeySequence, QKeyEvent, QShortcut, QIcon
 from .sidebar_widget import SidebarWidget
 from .chat_widget import ChatWidget
 from .input_widget import InputWidget, estimate_tokens
@@ -18,6 +19,7 @@ from .settings_dialog import SettingsDialog
 from workers.api_worker import APIWorker
 from core.main_controller import MainController
 from core.logger import get_logger
+from core.paths import get_icon_path
 
 
 class MainWindow(QMainWindow):
@@ -51,6 +53,17 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("🤖 ChatBot BDM Desktop")
         self.resize(1200, 800)
+
+        # Configuration de l'icône de la fenêtre
+        try:
+            icon_path = get_icon_path()
+            if Path(icon_path).exists():
+                self.setWindowIcon(QIcon(icon_path))
+                self.logger.debug(f"[MAIN_WINDOW] Icône de la fenêtre chargée: {icon_path}")
+            else:
+                self.logger.warning(f"[MAIN_WINDOW] Fichier d'icône introuvable: {icon_path}")
+        except Exception as e:
+            self.logger.warning(f"[MAIN_WINDOW] Impossible de charger l'icône: {e}")
         
         # Maximiser la fenêtre au démarrage
         self.showMaximized()

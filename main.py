@@ -9,9 +9,10 @@ import argparse
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from ui.main_window import MainWindow
 from core.logger import LoggerSetup
-from core.paths import init_user_paths
+from core.paths import init_user_paths, get_icon_path
 
 
 def is_portable_mode() -> bool:
@@ -362,11 +363,35 @@ def main():
     
     # Création de l'application Qt
     app = QApplication(sys.argv)
-    
+
     # Configuration de l'application
     app.setApplicationName("ChatBot BDM Desktop")
     app.setOrganizationName("ChatbotBDM")
     app.setApplicationVersion("1.0.0")
+
+    # Configuration de l'icône de l'application
+    try:
+        icon_path = get_icon_path()
+        if Path(icon_path).exists():
+            app.setWindowIcon(QIcon(icon_path))
+            logger.debug(f"Icône de l'application chargée: {icon_path}")
+        else:
+            logger.warning(f"Fichier d'icône introuvable: {icon_path}")
+    except Exception as e:
+        logger.warning(f"Impossible de charger l'icône: {e}")
+
+    # Configuration Windows pour l'icône de la barre des tâches
+    # Nécessaire pour que Windows affiche correctement l'icône dans la barre des tâches
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            # Définir l'AppUserModelID pour Windows 7+
+            # Cela permet à Windows de regrouper correctement l'application dans la barre des tâches
+            myappid = 'ChatbotBDM.ChatBotBDMDesktop.1.0.0'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+            logger.debug(f"AppUserModelID Windows configuré: {myappid}")
+        except Exception as e:
+            logger.warning(f"Impossible de configurer l'AppUserModelID Windows: {e}")
     
     # Style global
     app.setStyleSheet(setup_application_style())
