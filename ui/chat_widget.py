@@ -171,21 +171,20 @@ class ChatWidget(QWidget):
                 self.logger.debug(f"[CHAT_WIDGET] Message loading remplacé par réponse finale")
                 return
 
-        # Vérification anti-duplication améliorée: vérifier les derniers messages
-        # (pas seulement le dernier à cause des race conditions)
-        if self.current_messages and role == 'user':
-            # Pour les messages utilisateur, vérifier les 3 derniers messages
-            for msg in self.current_messages[-3:]:
-                if msg['role'] == role and msg['content'] == content:
-                    self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION USER DÉTECTÉE ET ÉVITÉE - Message ignoré")
-                    return
-
-        # Pour les messages assistant, vérifier uniquement le dernier (car on a déjà la logique de remplacement)
-        if self.current_messages and role == 'assistant':
+        # Vérification anti-duplication : bloquer uniquement les duplications IMMÉDIATES (race conditions)
+        # Ne pas bloquer les questions légitimes identiques posées à des moments différents
+        if self.current_messages:
             last_msg = self.current_messages[-1]
-            if last_msg['role'] == role and last_msg['content'] == content and 'typing-indicator' not in content:
-                self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION ASSISTANT DÉTECTÉE ET ÉVITÉE - Message ignoré")
-                return
+
+            # Bloquer seulement si le dernier message a le même role ET le même contenu
+            # (indique une race condition, pas une question légitime)
+            if last_msg['role'] == role and last_msg['content'] == content:
+                # Exception : ne pas bloquer les typing indicators (ils peuvent être multiples)
+                if 'typing-indicator' in content:
+                    self.logger.debug(f"[CHAT_WIDGET] Typing indicator multiple détecté (autorisé)")
+                else:
+                    self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION IMMÉDIATE DÉTECTÉE - Message ignoré (role: {role})")
+                    return
 
         self.logger.debug("[CHAT_WIDGET] → Ajout d'un nouveau message")
         message = {'role': role, 'content': content}
@@ -243,32 +242,34 @@ class ChatWidget(QWidget):
         self.append_message('assistant', typing_html)
 
     def hide_typing_indicator(self):
-        """Cache l'indicateur de frappe en retirant tous les messages typing indicator."""
+        """Cache l'indicateur de frappe en retirant le dernier message s'il contient l'indicateur."""
         self.logger.debug("[CHAT_WIDGET] hide_typing_indicator() appelé")
+        self.logger.debug(f"[CHAT_WIDGET] Nombre de messages actuels: {len(self.current_messages)}")
 
-        # Chercher et retirer TOUS les messages contenant l'indicateur de frappe
-        # (protection contre les duplications)
-        removed_count = 0
-        i = len(self.current_messages) - 1
+        if not self.current_messages:
+            self.logger.warning("[CHAT_WIDGET] ⚠️ Aucun message dans la liste")
+            return
 
-        # Parcourir les messages de la fin vers le début
-        while i >= 0:
+        # Chercher l'indicateur de frappe dans les derniers messages (max 3)
+        # Parcourir de la fin vers le début, mais limité aux 3 derniers
+        removed = False
+        for i in range(len(self.current_messages) - 1, max(-1, len(self.current_messages) - 4), -1):
             msg = self.current_messages[i]
             content = msg.get('content', '')
 
             # Vérifier si c'est un typing indicator
             if msg.get('role') == 'assistant' and 'typing-indicator' in content:
                 self.logger.debug(f"[CHAT_WIDGET] Retrait de l'indicateur de frappe à l'index {i}")
+                self.logger.debug(f"[CHAT_WIDGET] Contenu retiré: {content[:50]}...")
                 self.current_messages.pop(i)
-                removed_count += 1
+                removed = True
+                break  # Retirer seulement le premier trouvé
 
-            i -= 1
-
-        if removed_count > 0:
-            self.logger.debug(f"[CHAT_WIDGET] {removed_count} indicateur(s) de frappe retiré(s)")
+        if removed:
+            self.logger.debug(f"[CHAT_WIDGET] Indicateur de frappe retiré, messages restants: {len(self.current_messages)}")
             self._render_html()
         else:
-            self.logger.warning("[CHAT_WIDGET] ⚠️ Aucun indicateur de frappe trouvé à retirer")
+            self.logger.warning("[CHAT_WIDGET] ⚠️ Aucun indicateur de frappe trouvé dans les 3 derniers messages")
 
     def set_max_displayed_messages(self, count: int):
         """
