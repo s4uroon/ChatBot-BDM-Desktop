@@ -150,8 +150,8 @@ Cela permet de :
 Les images sont affichées avec les styles suivants :
 ```css
 .avatar-img {
-    width: 38px;
-    height: 38px;
+    width: 46px;
+    height: 46px;
     object-fit: cover;           /* Recadrage automatique */
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
@@ -159,7 +159,7 @@ Les images sont affichées avec les styles suivants :
 
 ### Caractéristiques d'Affichage
 - **Forme** : Carrée (coins naturels de l'image)
-- **Taille** : 38×38 pixels à l'écran
+- **Taille** : 46×46 pixels à l'écran
 - **Position** : Centré au-dessus de chaque message
 - **Ombre** : Légère pour effet de profondeur
 

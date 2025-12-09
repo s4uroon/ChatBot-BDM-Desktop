@@ -493,8 +493,8 @@ class HTMLGenerator:
             }
 
             .message-avatar .avatar-img {
-                width: 38px;
-                height: 38px;
+                width: 46px;
+                height: 46px;
                 object-fit: cover;
                 display: inline-block;
                 vertical-align: middle;
