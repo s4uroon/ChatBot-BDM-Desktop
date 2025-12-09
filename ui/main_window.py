@@ -66,10 +66,7 @@ class MainWindow(QMainWindow):
                 self.logger.warning(f"[MAIN_WINDOW] Fichier d'icône introuvable: {icon_path}")
         except Exception as e:
             self.logger.warning(f"[MAIN_WINDOW] Impossible de charger l'icône: {e}")
-        
-        # Maximiser la fenêtre au démarrage
-        self.showMaximized()
-        
+
         self.setup_ui()
         self.setup_menus()
         self.setup_shortcuts()

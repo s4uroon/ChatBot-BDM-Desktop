@@ -412,8 +412,8 @@ def main():
             settings_file=user_paths.get_settings_file()
         )
 
-        # Affichage
-        window.show()
+        # Affichage maximisé
+        window.showMaximized()
         logger.info("✅ Application démarrée avec succès")
         
         # Boucle d'événements
