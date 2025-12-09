@@ -30,7 +30,7 @@ class HTMLGenerator:
 
     # Langages supportés par Highlight.js
     SUPPORTED_LANGUAGES = [
-        'python', 'bash', 'perl', 'php', 'html', 'css',
+        'python', 'bash', 'perl', 'php', 'xml',  # xml pour HTML/XML
         'powershell', 'java', 'json', 'javascript', 'sql',
         'cpp', 'c', 'csharp', 'ruby', 'go', 'rust'
     ]
@@ -106,11 +106,13 @@ class HTMLGenerator:
             try:
                 if lang_file.exists():
                     languages_js.append(lang_file.read_text(encoding='utf-8'))
+                    self.logger.debug(f"[HTML_GEN] Langage chargé: {lang}")
                 else:
-                    self.logger.warning(f"[HTML_GEN] Langage introuvable: {lang}")
+                    self.logger.debug(f"[HTML_GEN] Langage non trouvé (ignoré): {lang}")
             except Exception as e:
                 self.logger.error(f"[HTML_GEN] Erreur lecture langage {lang}: {e}")
 
+        self.logger.debug(f"[HTML_GEN] Total langages chargés: {len(languages_js)}/{len(self.SUPPORTED_LANGUAGES)}")
         return "\n".join(languages_js)
 
     def _read_hljs_theme(self, theme: str) -> str:
@@ -353,8 +355,22 @@ class HTMLGenerator:
         encodées en base64 pour compatibilité QWebEngineView.
         Sinon fallback vers emojis Unicode.
         """
+        self.logger.debug(f"[HTML_GEN][AVATAR] Chargement avatar pour rôle: {role}")
+
         # Chemins des images d'avatar (compatible PyInstaller)
-        avatar_dir = self._get_base_path() / 'assets' / 'avatars'
+        base_path = self._get_base_path()
+        avatar_dir = base_path / 'assets' / 'avatars'
+
+        self.logger.debug(f"[HTML_GEN][AVATAR] Base path: {base_path}")
+        self.logger.debug(f"[HTML_GEN][AVATAR] Avatar directory: {avatar_dir}")
+        self.logger.debug(f"[HTML_GEN][AVATAR] Avatar directory exists: {avatar_dir.exists()}")
+
+        if avatar_dir.exists():
+            try:
+                dir_contents = list(avatar_dir.iterdir())
+                self.logger.debug(f"[HTML_GEN][AVATAR] Fichiers dans {avatar_dir}: {[f.name for f in dir_contents]}")
+            except Exception as e:
+                self.logger.debug(f"[HTML_GEN][AVATAR] Erreur listing directory: {e}")
 
         # Mapping rôle -> fichier image
         avatar_files = {
@@ -372,25 +388,68 @@ class HTMLGenerator:
 
         # Vérifier si un fichier image existe pour ce rôle
         if role in avatar_files:
-            avatar_path = avatar_dir / avatar_files[role]
+            avatar_filename = avatar_files[role]
+            avatar_path = avatar_dir / avatar_filename
+
+            self.logger.debug(f"[HTML_GEN][AVATAR] Recherche fichier: {avatar_filename}")
+            self.logger.debug(f"[HTML_GEN][AVATAR] Chemin complet: {avatar_path}")
+            self.logger.debug(f"[HTML_GEN][AVATAR] Fichier existe: {avatar_path.exists()}")
+
             if avatar_path.exists():
+                self.logger.info(f"[HTML_GEN][AVATAR] ✓ Fichier trouvé: {avatar_path}")
+
                 try:
+                    # Vérifier les permissions
+                    import os
+                    is_readable = os.access(avatar_path, os.R_OK)
+                    self.logger.debug(f"[HTML_GEN][AVATAR] Permissions lecture: {is_readable}")
+
+                    # Vérifier la taille du fichier
+                    file_size = avatar_path.stat().st_size
+                    self.logger.debug(f"[HTML_GEN][AVATAR] Taille fichier: {file_size} octets")
+
+                    if file_size == 0:
+                        self.logger.warning(f"[HTML_GEN][AVATAR] ⚠ Fichier vide: {avatar_path}")
+                        return emoji_fallback.get(role, '❓')
+
                     # Lire l'image et l'encoder en base64
+                    self.logger.debug(f"[HTML_GEN][AVATAR] Lecture fichier...")
                     with open(avatar_path, 'rb') as img_file:
                         img_data = img_file.read()
+                        self.logger.debug(f"[HTML_GEN][AVATAR] Données lues: {len(img_data)} octets")
+
                         img_base64 = base64.b64encode(img_data).decode('utf-8')
+                        self.logger.debug(f"[HTML_GEN][AVATAR] Base64 encodé: {len(img_base64)} caractères")
+                        self.logger.debug(f"[HTML_GEN][AVATAR] Base64 preview: {img_base64[:50]}...")
 
                     # Déterminer le type MIME de l'image
                     mime_type = mimetypes.guess_type(str(avatar_path))[0] or 'image/png'
+                    self.logger.debug(f"[HTML_GEN][AVATAR] Type MIME détecté: {mime_type}")
 
                     # Retourner une balise <img> avec data URL (base64)
-                    return f'<img src="data:{mime_type};base64,{img_base64}" alt="{role}" class="avatar-img">'
+                    data_url = f'data:{mime_type};base64,{img_base64}'
+                    html_tag = f'<img src="{data_url}" alt="{role}" class="avatar-img">'
+
+                    self.logger.info(f"[HTML_GEN][AVATAR] ✓ Avatar {role} chargé avec succès (base64)")
+                    self.logger.debug(f"[HTML_GEN][AVATAR] HTML tag length: {len(html_tag)} caractères")
+
+                    return html_tag
+
+                except PermissionError as e:
+                    self.logger.error(f"[HTML_GEN][AVATAR] ✗ Erreur permissions pour {avatar_path}: {e}")
+                except IOError as e:
+                    self.logger.error(f"[HTML_GEN][AVATAR] ✗ Erreur I/O lecture {avatar_path}: {e}")
                 except Exception as e:
-                    self.logger.warning(f"[HTML_GEN] Erreur chargement avatar {role}: {e}")
-                    # En cas d'erreur, utiliser le fallback emoji
+                    self.logger.error(f"[HTML_GEN][AVATAR] ✗ Erreur chargement avatar {role}: {e}", exc_info=True)
+            else:
+                self.logger.info(f"[HTML_GEN][AVATAR] ✗ Fichier non trouvé: {avatar_path}, utilisation emoji fallback")
+        else:
+            self.logger.debug(f"[HTML_GEN][AVATAR] Rôle '{role}' non reconnu, utilisation emoji fallback")
 
         # Fallback vers emoji
-        return emoji_fallback.get(role, '❓')
+        emoji = emoji_fallback.get(role, '❓')
+        self.logger.debug(f"[HTML_GEN][AVATAR] Retour emoji: {emoji}")
+        return emoji
     
     def _get_base_css(self) -> str:
         """Retourne le CSS de base pour le chat - THÈME SOMBRE."""
