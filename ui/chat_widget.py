@@ -11,6 +11,8 @@ from PyQt6.QtGui import QContextMenuEvent
 from typing import List, Dict, Optional
 from utils.html_generator import HTMLGenerator
 from core.logger import get_logger
+import base64
+import os
 
 
 class CustomWebEngineView(QWebEngineView):
@@ -96,16 +98,30 @@ class ChatWidget(QWidget):
         """)
         
         layout.addWidget(self.web_view)
-    
+
+    def _get_logo_base64(self):
+        """Retourne le logo encodé en base64 pour l'inclure dans le HTML."""
+        try:
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'ChatBot_BDM_Desktop.png')
+            with open(logo_path, 'rb') as f:
+                logo_data = base64.b64encode(f.read()).decode('utf-8')
+                return f"data:image/png;base64,{logo_data}"
+        except Exception as e:
+            self.logger.warning(f"[CHAT_WIDGET] Impossible de charger le logo: {e}")
+            return ""
+
     def load_empty_page(self):
         """Charge une page vide au démarrage - THÈME SOMBRE."""
-        empty_html = """
+        logo_src = self._get_logo_base64()
+        logo_img = f"<img src='{logo_src}' width='48' height='48' style='vertical-align: middle; margin-right: 10px;'/>" if logo_src else "🤖"
+
+        empty_html = f"""
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <style>
-        body {
+        body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
             display: flex;
             justify-content: center;
@@ -114,31 +130,34 @@ class ChatWidget(QWidget):
             margin: 0;
             background: linear-gradient(135deg, #1a3a1a 0%, #2d2d2d 100%);
             color: #e0e0e0;
-        }
-        .welcome {
+        }}
+        .welcome {{
             text-align: center;
             animation: fadeIn 1s ease-in;
-        }
-        .welcome h1 {
+        }}
+        .welcome h1 {{
             font-size: 48px;
             margin-bottom: 20px;
             color: #4CAF50;
             text-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
-        }
-        .welcome p {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .welcome p {{
             font-size: 18px;
             opacity: 0.9;
             color: #b0b0b0;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
     </style>
 </head>
 <body>
     <div class="welcome">
-        <h1><img src='assets/ChatBot_BDM_Desktop.png' width='32' height='32' style='vertical-align: middle; margin-right: 10px;'/> ChatBot BDM Desktop</h1>
+        <h1>{logo_img} ChatBot BDM Desktop</h1>
         <p>Commencez une nouvelle conversation ou sélectionnez une conversation existante</p>
     </div>
 </body>
