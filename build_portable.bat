@@ -77,10 +77,9 @@ echo.
 echo [OK] Compilation réussie
 echo.
 
-REM Créer le dossier data dans la distribution
-echo [3/4] Création du dossier de données...
-if not exist "dist\ChatBot BDM Desktop\data" mkdir "dist\ChatBot BDM Desktop\data"
-echo [OK] Dossier data créé
+REM Note : Le dossier data/ sera créé automatiquement par l'application si nécessaire
+echo [3/4] Préparation de la distribution...
+echo [OK] Distribution prête
 echo.
 
 REM Créer un fichier README dans la distribution
@@ -95,17 +94,22 @@ echo.
 echo UTILISATION :
 echo   Double-cliquez sur "ChatBot BDM Desktop.exe" pour lancer l'application
 echo.
-echo DONNÉES :
-echo   Toutes vos données ^(conversations, paramètres, etc.^) sont stockées
-echo   dans le dossier "data" à côté de l'exécutable.
+echo STOCKAGE DES DONNÉES :
+echo   - Base de données et paramètres : Stockés dans votre profil utilisateur
+echo     Windows : C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\
+echo     ^(chatbot.db et settings.ini^)
+echo.
+echo   - Logs et exports : Stockés dans le dossier "data" à côté de l'exécutable
+echo     ^(créé automatiquement lors de la première utilisation^)
 echo.
 echo DÉPLACEMENT :
-echo   Vous pouvez déplacer tout le dossier "ChatBot BDM Desktop" où vous
-echo   voulez sur votre ordinateur ou même sur une clé USB.
+echo   Vous pouvez déplacer le dossier "ChatBot BDM Desktop" où vous voulez.
+echo   Vos conversations et paramètres resteront dans votre profil utilisateur.
 echo.
 echo DÉSINSTALLATION :
-echo   Supprimez simplement le dossier "ChatBot BDM Desktop" pour désinstaller
-echo   complètement l'application.
+echo   1. Supprimez le dossier "ChatBot BDM Desktop"
+echo   2. Si souhaité, supprimez aussi C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\
+echo      pour effacer toutes vos conversations et paramètres
 echo.
 echo ============================================================================
 echo  Version : 1.0.0
