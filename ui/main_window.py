@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
     def _get_logo_base64(self):
         """Retourne le logo encodé en base64 pour l'inclure dans le HTML."""
         try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'ChatBot_BDM_Desktop.png')
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'ChatBot_BDM_Desktop_256.png')
             with open(logo_path, 'rb') as f:
                 logo_data = base64.b64encode(f.read()).decode('utf-8')
                 return f"data:image/png;base64,{logo_data}"
