@@ -72,6 +72,10 @@ class ChatWidget(QWidget):
         # Limite d'affichage pour optimisation (peut être modifié via set_max_displayed_messages)
         self.max_displayed_messages = 100
 
+        # Protection contre les race conditions de rendu
+        self._render_version = 0
+        self._pending_render = False
+
         self.setup_ui()
         self.load_empty_page()
     
@@ -167,11 +171,20 @@ class ChatWidget(QWidget):
                 self.logger.debug(f"[CHAT_WIDGET] Message loading remplacé par réponse finale")
                 return
 
-        # Vérification anti-duplication: ne pas ajouter si le message est identique au dernier
-        if self.current_messages:
+        # Vérification anti-duplication améliorée: vérifier les derniers messages
+        # (pas seulement le dernier à cause des race conditions)
+        if self.current_messages and role == 'user':
+            # Pour les messages utilisateur, vérifier les 3 derniers messages
+            for msg in self.current_messages[-3:]:
+                if msg['role'] == role and msg['content'] == content:
+                    self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION USER DÉTECTÉE ET ÉVITÉE - Message ignoré")
+                    return
+
+        # Pour les messages assistant, vérifier uniquement le dernier (car on a déjà la logique de remplacement)
+        if self.current_messages and role == 'assistant':
             last_msg = self.current_messages[-1]
-            if last_msg['role'] == role and last_msg['content'] == content:
-                self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION DÉTECTÉE ET ÉVITÉE - Message ignoré (role: {role})")
+            if last_msg['role'] == role and last_msg['content'] == content and 'typing-indicator' not in content:
+                self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION ASSISTANT DÉTECTÉE ET ÉVITÉE - Message ignoré")
                 return
 
         self.logger.debug("[CHAT_WIDGET] → Ajout d'un nouveau message")
@@ -200,12 +213,13 @@ class ChatWidget(QWidget):
     def load_conversation(self, messages: List[Dict]):
         """
         Charge une conversation complète.
-        
+
         Args:
             messages: Liste de messages à afficher
         """
         self.current_messages = messages
         self.should_scroll_to_question = False  # Ne pas scroller lors du chargement
+        self._render_version = 0  # Réinitialiser le compteur de version
         self._render_html()
         self.logger.debug(f"[CHAT_WIDGET] Conversation chargée: {len(messages)} messages")
     
@@ -229,11 +243,32 @@ class ChatWidget(QWidget):
         self.append_message('assistant', typing_html)
 
     def hide_typing_indicator(self):
-        """Cache l'indicateur de frappe en retirant le dernier message s'il contient l'indicateur."""
-        if self.current_messages and 'typing-indicator' in self.current_messages[-1].get('content', ''):
-            self.logger.debug("[CHAT_WIDGET] Retrait de l'indicateur de frappe")
-            self.current_messages.pop()
+        """Cache l'indicateur de frappe en retirant tous les messages typing indicator."""
+        self.logger.debug("[CHAT_WIDGET] hide_typing_indicator() appelé")
+
+        # Chercher et retirer TOUS les messages contenant l'indicateur de frappe
+        # (protection contre les duplications)
+        removed_count = 0
+        i = len(self.current_messages) - 1
+
+        # Parcourir les messages de la fin vers le début
+        while i >= 0:
+            msg = self.current_messages[i]
+            content = msg.get('content', '')
+
+            # Vérifier si c'est un typing indicator
+            if msg.get('role') == 'assistant' and 'typing-indicator' in content:
+                self.logger.debug(f"[CHAT_WIDGET] Retrait de l'indicateur de frappe à l'index {i}")
+                self.current_messages.pop(i)
+                removed_count += 1
+
+            i -= 1
+
+        if removed_count > 0:
+            self.logger.debug(f"[CHAT_WIDGET] {removed_count} indicateur(s) de frappe retiré(s)")
             self._render_html()
+        else:
+            self.logger.warning("[CHAT_WIDGET] ⚠️ Aucun indicateur de frappe trouvé à retirer")
 
     def set_max_displayed_messages(self, count: int):
         """
@@ -247,7 +282,11 @@ class ChatWidget(QWidget):
     
     def _render_html(self):
         """Génère et affiche le HTML de la conversation SANS scroller automatiquement."""
-        self.logger.debug(f"[CHAT_WIDGET] ===== _render_html() APPELÉ =====")
+        # Incrémenter la version de rendu pour invalider les anciens callbacks
+        self._render_version += 1
+        current_version = self._render_version
+
+        self.logger.debug(f"[CHAT_WIDGET] ===== _render_html() APPELÉ (version {current_version}) =====")
         self.logger.debug(f"[CHAT_WIDGET] Nombre de messages: {len(self.current_messages)}")
         self.logger.debug(f"[CHAT_WIDGET] should_scroll_to_question: {self.should_scroll_to_question}")
 
@@ -264,9 +303,9 @@ class ChatWidget(QWidget):
             messages_to_render,
             self.custom_colors
         )
-        
+
         self.logger.debug(f"[CHAT_WIDGET] HTML généré, taille: {len(html)} caractères")
-        
+
         # Si on a au moins un message
         if len(self.current_messages) > 0:
             # Si on doit scroller vers la question, on charge le HTML et on scrollera après
@@ -281,8 +320,13 @@ class ChatWidget(QWidget):
                 # Sinon, sauvegarder et restaurer la position
                 self.logger.debug("[CHAT_WIDGET] Mode PRÉSERVATION scroll activé")
                 js_get_scroll = "window.pageYOffset || document.documentElement.scrollTop"
-                
+
                 def callback(scroll_pos):
+                    # Vérifier que ce callback correspond toujours à la dernière version
+                    if current_version != self._render_version:
+                        self.logger.debug(f"[CHAT_WIDGET] ⚠️ Callback obsolète ignoré (v{current_version} vs v{self._render_version})")
+                        return
+
                     self.logger.debug(f"[CHAT_WIDGET] Position scroll sauvegardée: {scroll_pos}")
                     self.web_view.setHtml(html)
                     self.logger.debug("[CHAT_WIDGET] HTML rechargé")
@@ -292,14 +336,14 @@ class ChatWidget(QWidget):
                         QTimer.singleShot(100, lambda: self._restore_scroll(scroll_pos))
                     else:
                         self.logger.debug("[CHAT_WIDGET] Pas de restauration (position = 0 ou None)")
-                
+
                 self.web_view.page().runJavaScript(js_get_scroll, callback)
         else:
             # Pas de messages, juste charger
             self.logger.debug("[CHAT_WIDGET] Pas de messages, chargement HTML simple")
             self.web_view.setHtml(html)
-        
-        self.logger.debug("[CHAT_WIDGET] ===== _render_html() TERMINÉ =====")
+
+        self.logger.debug(f"[CHAT_WIDGET] ===== _render_html() TERMINÉ (version {current_version}) =====")
     
     def _do_scroll_to_question(self):
         """Execute le scroll vers la dernière question."""
