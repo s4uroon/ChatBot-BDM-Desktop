@@ -6,6 +6,8 @@ Fenêtre principale de l'application
 
 from typing import Optional
 from pathlib import Path
+import base64
+import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar
@@ -483,64 +485,82 @@ class MainWindow(QMainWindow):
             self.chat_widget.set_custom_colors(settings['colors'])
 
         self.status_bar.showMessage("✅ Paramètres mis à jour", 3000)
-    
+
+    def _get_logo_base64(self):
+        """Retourne le logo encodé en base64 pour l'inclure dans le HTML."""
+        try:
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'ChatBot_BDM_Desktop.png')
+            with open(logo_path, 'rb') as f:
+                logo_data = base64.b64encode(f.read()).decode('utf-8')
+                return f"data:image/png;base64,{logo_data}"
+        except Exception as e:
+            self.logger.warning(f"[MAIN_WINDOW] Impossible de charger le logo: {e}")
+            return ""
+
     def _on_about(self):
         """Affiche la fenêtre À propos."""
+        logo_src = self._get_logo_base64()
+        logo_img = f"<img src='{logo_src}' width='32' height='32' style='vertical-align: middle; margin-right: 10px;'/>" if logo_src else "🤖"
+
+        about_text = (
+            f"<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;'>"
+            f"  <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; margin-bottom: 20px;'>"
+            f"    <h1 style='margin: 0; font-size: 28px;'>{logo_img} ChatBot BDM Desktop</h1>"
+            f"    <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>Professional AI Assistant</p>"
+            f"  </div>"
+            f"  "
+            f"  <div style='padding: 15px; border-radius: 8px; margin-bottom: 15px;'>"
+            f"    <p style='margin: 5px 0;'><b>Version:</b> 2.0.1</p>"
+            f"    <p style='margin: 5px 0;'><b>Creator:</b> Gwendal CHAIGNEAU BOEZENNEC</p>"
+            f"    <p style='margin: 5px 0;'><b>Framework:</b> PyQt6 + Qt WebEngine</p>"
+            f"    <p style='margin: 5px 0;'><b>API:</b> OpenAI Compatible</p>"
+            f"  </div>"
+            f"  "
+            f"  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>✨ Core Features</h3>"
+            f"  <ul style='line-height: 1.8;'>"
+            f"    <li>🚀 <b>Real-time Streaming</b> - Instant response generation</li>"
+            f"    <li>💬 <b>Multi-Session Management</b> - Organize multiple conversations</li>"
+            f"    <li>🔍 <b>Full-Text Search</b> - Find messages across all sessions</li>"
+            f"    <li>✏️ <b>Session Renaming</b> - Customize conversation titles</li>"
+            f"    <li>🗑️ <b>Batch Delete</b> - Remove multiple sessions at once</li>"
+            f"  </ul>"
+            f"  "
+            f"  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>🎨 Interface & UX</h3>"
+            f"  <ul style='line-height: 1.8;'>"
+            f"    <li>🌈 <b>Syntax Highlighting</b> - Powered by Highlight.js</li>"
+            f"    <li>🎨 <b>Customizable Themes</b> - Choose from 20+ code themes</li>"
+            f"    <li>🎭 <b>Custom Colors</b> - Personalize message appearance</li>"
+            f"    <li>⌨️ <b>Keyboard Shortcuts</b> - Boost productivity (Ctrl+N, Ctrl+F, Esc...)</li>"
+            f"    <li>📊 <b>Token Counter</b> - Track conversation usage</li>"
+            f"    <li>⏸️ <b>Cancel Streaming</b> - Stop responses anytime (Esc)</li>"
+            f"  </ul>"
+            f"  "
+            f"  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>💾 Export & Data</h3>"
+            f"  <ul style='line-height: 1.8;'>"
+            f"    <li>📄 <b>JSON Export</b> - Machine-readable format</li>"
+            f"    <li>📝 <b>Markdown Export</b> - Human-readable documentation</li>"
+            f"    <li>📦 <b>Selective Export</b> - Export single or multiple sessions</li>"
+            f"    <li>🗄️ <b>SQLite Database</b> - Reliable local storage</li>"
+            f"  </ul>"
+            f"  "
+            f"  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>🔒 Security & Performance</h3>"
+            f"  <ul style='line-height: 1.8;'>"
+            f"    <li>🔐 <b>SSL/TLS Support</b> - Secure API connections</li>"
+            f"    <li>⚡ <b>SSL Bypass Option</b> - For self-signed certificates</li>"
+            f"    <li>🛡️ <b>Rate Limiting</b> - API protection</li>"
+            f"    <li>🔧 <b>Connection Testing</b> - Verify API settings</li>"
+            f"  </ul>"
+            f"  "
+            f"  <div style='margin-top: 20px; padding: 15px; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 5px;'>"
+            f"    <p style='margin: 0; color: #2e7d32;'><b>💡 Tip:</b> Press <code>Ctrl+F</code> to search, <code>Ctrl+N</code> for new session, <code>Esc</code> to cancel streaming</p>"
+            f"  </div>"
+            f"</div>"
+        )
+
         QMessageBox.about(
             self,
             "About ChatBot BDM Desktop",
-            "<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;'>"
-            "  <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; margin-bottom: 20px;'>"
-            "    <h1 style='margin: 0; font-size: 28px;'><img src='assets/ChatBot_BDM_Desktop.png' width='32' height='32' style='vertical-align: middle; margin-right: 10px;'/> ChatBot BDM Desktop</h1>"
-            "    <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>Professional AI Assistant</p>"
-            "  </div>"
-            "  "
-            "  <div style='padding: 15px; border-radius: 8px; margin-bottom: 15px;'>"
-            "    <p style='margin: 5px 0;'><b>Version:</b> 2.0.1</p>"
-            "    <p style='margin: 5px 0;'><b>Creator:</b> Gwendal CHAIGNEAU BOEZENNEC</p>"
-            "    <p style='margin: 5px 0;'><b>Framework:</b> PyQt6 + Qt WebEngine</p>"
-            "    <p style='margin: 5px 0;'><b>API:</b> OpenAI Compatible</p>"
-            "  </div>"
-            "  "
-            "  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>✨ Core Features</h3>"
-            "  <ul style='line-height: 1.8;'>"
-            "    <li>🚀 <b>Real-time Streaming</b> - Instant response generation</li>"
-            "    <li>💬 <b>Multi-Session Management</b> - Organize multiple conversations</li>"
-            "    <li>🔍 <b>Full-Text Search</b> - Find messages across all sessions</li>"
-            "    <li>✏️ <b>Session Renaming</b> - Customize conversation titles</li>"
-            "    <li>🗑️ <b>Batch Delete</b> - Remove multiple sessions at once</li>"
-            "  </ul>"
-            "  "
-            "  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>🎨 Interface & UX</h3>"
-            "  <ul style='line-height: 1.8;'>"
-            "    <li>🌈 <b>Syntax Highlighting</b> - Powered by Highlight.js</li>"
-            "    <li>🎨 <b>Customizable Themes</b> - Choose from 20+ code themes</li>"
-            "    <li>🎭 <b>Custom Colors</b> - Personalize message appearance</li>"
-            "    <li>⌨️ <b>Keyboard Shortcuts</b> - Boost productivity (Ctrl+N, Ctrl+F, Esc...)</li>"
-            "    <li>📊 <b>Token Counter</b> - Track conversation usage</li>"
-            "    <li>⏸️ <b>Cancel Streaming</b> - Stop responses anytime (Esc)</li>"
-            "  </ul>"
-            "  "
-            "  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>💾 Export & Data</h3>"
-            "  <ul style='line-height: 1.8;'>"
-            "    <li>📄 <b>JSON Export</b> - Machine-readable format</li>"
-            "    <li>📝 <b>Markdown Export</b> - Human-readable documentation</li>"
-            "    <li>📦 <b>Selective Export</b> - Export single or multiple sessions</li>"
-            "    <li>🗄️ <b>SQLite Database</b> - Reliable local storage</li>"
-            "  </ul>"
-            "  "
-            "  <h3 style='color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 5px;'>🔒 Security & Performance</h3>"
-            "  <ul style='line-height: 1.8;'>"
-            "    <li>🔐 <b>SSL/TLS Support</b> - Secure API connections</li>"
-            "    <li>⚡ <b>SSL Bypass Option</b> - For self-signed certificates</li>"
-            "    <li>🛡️ <b>Rate Limiting</b> - API protection</li>"
-            "    <li>🔧 <b>Connection Testing</b> - Verify API settings</li>"
-            "  </ul>"
-            "  "
-            "  <div style='margin-top: 20px; padding: 15px; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 5px;'>"
-            "    <p style='margin: 0; color: #2e7d32;'><b>💡 Tip:</b> Press <code>Ctrl+F</code> to search, <code>Ctrl+N</code> for new session, <code>Esc</code> to cancel streaming</p>"
-            "  </div>"
-            "</div>"
+            about_text
         )
     
     # === UTILITAIRES ===
