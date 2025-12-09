@@ -2,6 +2,12 @@
 
 Ce guide explique comment personnaliser les avatars (icônes) de l'utilisateur et de l'IA dans l'interface du chat.
 
+## ⚡ Correctif Important (Décembre 2025)
+
+**Problème résolu** : Les avatars utilisent maintenant l'**encodage base64** au lieu du protocole `file:///`.
+**Raison** : QWebEngineView bloque le chargement d'images locales via `file:///` pour des raisons de sécurité.
+**Solution** : Les images sont automatiquement encodées en base64 et intégrées directement dans le HTML.
+
 ## 📁 Emplacement des Images
 
 Les images d'avatar doivent être placées dans le dossier :
@@ -54,6 +60,56 @@ Créez les fichiers suivants dans `assets/avatars/` :
 ### Exemples de Concepts
 - **Utilisateur** : Silhouette, initiales, photo de profil
 - **Assistant** : Robot, cerveau, icône IA, logo personnalisé
+
+## 🚀 Création Rapide d'Avatars de Test
+
+### Méthode 1 : Avec Python (Pillow)
+
+Si vous avez Python et Pillow installés :
+
+```python
+from PIL import Image, ImageDraw, ImageFont
+
+def create_avatar(filename, bg_color, text):
+    img = Image.new('RGBA', (48, 48), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    try:
+        font = ImageFont.truetype("arial.ttf", 24)
+    except:
+        font = ImageFont.load_default()
+
+    # Centrer le texte
+    bbox = draw.textbbox((0, 0), text, font=font)
+    x = (48 - (bbox[2] - bbox[0])) // 2
+    y = (48 - (bbox[3] - bbox[1])) // 2 - 2
+
+    draw.text((x, y), text, fill=(255, 255, 255, 255), font=font)
+    img.save(filename, 'PNG')
+
+# Créer les avatars
+create_avatar('assets/avatars/user.png', (33, 150, 243, 255), 'U')
+create_avatar('assets/avatars/assistant.png', (76, 175, 80, 255), 'AI')
+```
+
+### Méthode 2 : Téléchargement Gratuit
+
+Sites avec des avatars gratuits :
+- **Flaticon** : https://www.flaticon.com/free-icons/user
+- **Icons8** : https://icons8.com/icons/set/avatar
+- **Freepik** : https://www.freepik.com/icons/avatar
+
+### Méthode 3 : Générateurs en Ligne
+
+- **Avatar Maker** : https://avatarmaker.com/
+- **Picrew** : https://picrew.me/
+- **DiceBear** : https://www.dicebear.com/ (API génératrice d'avatars)
+
+### Méthode 4 : Outils Graphiques
+
+- **GIMP** (gratuit) : Créez un carré 48×48, ajoutez du texte/formes, exportez en PNG
+- **Paint.NET** (Windows) : Similaire à GIMP
+- **Photopea** (en ligne) : https://www.photopea.com/ - comme Photoshop, gratuit
 
 ## 🔧 Comment Modifier les Avatars
 
@@ -113,10 +169,19 @@ Les images sont affichées avec les styles suivants :
 ## 🛠️ Dépannage
 
 ### Les images ne s'affichent pas
-1. ✅ Vérifiez que les fichiers sont dans `assets/avatars/`
-2. ✅ Vérifiez les noms exacts : `user.png`, `assistant.png`
-3. ✅ Vérifiez les permissions de lecture des fichiers
-4. ✅ Redémarrez complètement l'application
+
+**Note** : Depuis le correctif de décembre 2025, les images sont encodées en base64 au lieu d'utiliser `file:///`.
+
+Vérifications :
+1. ✅ Les fichiers sont dans `assets/avatars/`
+2. ✅ Les noms sont exacts : `user.png`, `assistant.png`
+3. ✅ Les fichiers sont au format PNG, JPG, ou WebP
+4. ✅ Les fichiers ne sont pas corrompus (ouvrez-les dans un visualiseur d'images)
+5. ✅ Redémarrez complètement l'application
+
+Si les images ne se chargent toujours pas, consultez les logs :
+- Cherchez `[HTML_GEN] Erreur chargement avatar` dans les logs
+- Vérifiez les permissions de lecture : `ls -l assets/avatars/`
 
 ### Les images sont déformées
 - Utilisez des images carrées (ratio 1:1)

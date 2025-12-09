@@ -6,6 +6,8 @@ Génération dynamique de HTML pour l'affichage du chat avec Highlight.js
 
 import re
 import sys
+import base64
+import mimetypes
 from typing import List, Dict
 from pathlib import Path
 from .code_parser import CodeParser
@@ -348,7 +350,8 @@ class HTMLGenerator:
         """Retourne l'avatar/icône selon le rôle.
 
         Utilise des images si disponibles dans assets/avatars/,
-        sinon fallback vers emojis Unicode.
+        encodées en base64 pour compatibilité QWebEngineView.
+        Sinon fallback vers emojis Unicode.
         """
         # Chemins des images d'avatar (compatible PyInstaller)
         avatar_dir = self._get_base_path() / 'assets' / 'avatars'
@@ -371,8 +374,20 @@ class HTMLGenerator:
         if role in avatar_files:
             avatar_path = avatar_dir / avatar_files[role]
             if avatar_path.exists():
-                # Retourner une balise <img> avec le chemin de l'image
-                return f'<img src="file:///{avatar_path.as_posix()}" alt="{role}" class="avatar-img">'
+                try:
+                    # Lire l'image et l'encoder en base64
+                    with open(avatar_path, 'rb') as img_file:
+                        img_data = img_file.read()
+                        img_base64 = base64.b64encode(img_data).decode('utf-8')
+
+                    # Déterminer le type MIME de l'image
+                    mime_type = mimetypes.guess_type(str(avatar_path))[0] or 'image/png'
+
+                    # Retourner une balise <img> avec data URL (base64)
+                    return f'<img src="data:{mime_type};base64,{img_base64}" alt="{role}" class="avatar-img">'
+                except Exception as e:
+                    self.logger.warning(f"[HTML_GEN] Erreur chargement avatar {role}: {e}")
+                    # En cas d'erreur, utiliser le fallback emoji
 
         # Fallback vers emoji
         return emoji_fallback.get(role, '❓')
