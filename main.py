@@ -412,8 +412,10 @@ def main():
             settings_file=user_paths.get_settings_file()
         )
 
-        # Affichage maximisé
-        window.showMaximized()
+        # Affichage - Approche compatible Windows
+        # Sur Windows, il faut d'abord show() puis setWindowState()
+        window.show()
+        window.setWindowState(Qt.WindowState.WindowMaximized)
         logger.info("✅ Application démarrée avec succès")
         
         # Boucle d'événements
