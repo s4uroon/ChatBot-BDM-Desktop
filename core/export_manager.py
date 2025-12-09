@@ -19,7 +19,26 @@ class ExportManager:
     
     def __init__(self):
         self.logger = get_logger()
-    
+
+    def _get_role_info(self, role: str) -> tuple[str, str]:
+        """
+        Retourne l'icône et le label pour un rôle donné.
+
+        Args:
+            role: Le rôle ('user', 'assistant', 'system')
+
+        Returns:
+            tuple: (icon, role_label)
+        """
+        if role == 'user':
+            return "👤", "Utilisateur"
+        elif role == 'assistant':
+            return "🤖", "Assistant"
+        elif role == 'system':
+            return "⚙️", "Système"
+        else:
+            return "❓", role.capitalize()
+
     def export_conversations_json(
         self,
         conversations: List[Dict],
@@ -122,18 +141,10 @@ class ExportManager:
         for msg_idx, message in enumerate(conversation['messages'], 1):
             role = message['role']
             content = message['content']
-            
+
             # Icône selon le rôle
-            if role == 'user':
-                icon = "👤"
-                role_label = "Utilisateur"
-            elif role == 'assistant':
-                icon = "🤖"
-                role_label = "Assistant"
-            else:
-                icon = "⚙️"
-                role_label = role.capitalize()
-            
+            icon, role_label = self._get_role_info(role)
+
             file.write(f"### {icon} {role_label} (Message {msg_idx})\n\n")
             file.write(f"{content}\n\n")
         
@@ -166,17 +177,10 @@ class ExportManager:
                 for msg_idx, message in enumerate(conversation['messages'], 1):
                     role = message['role']
                     content = message['content']
-                    
-                    if role == 'user':
-                        icon = "👤"
-                        role_label = "Utilisateur"
-                    elif role == 'assistant':
-                        icon = "🤖"
-                        role_label = "Assistant"
-                    else:
-                        icon = "⚙️"
-                        role_label = role.capitalize()
-                    
+
+                    # Icône selon le rôle
+                    icon, role_label = self._get_role_info(role)
+
                     f.write(f"## {icon} {role_label}\n\n")
                     f.write(f"{content}\n\n")
                     f.write("---\n\n")
