@@ -138,7 +138,7 @@ class ChatWidget(QWidget):
 </head>
 <body>
     <div class="welcome">
-        <h1>🤖 ChatBot BDM Desktop</h1>
+        <h1><img src='assets/ChatBot_BDM_Desktop.png' width='32' height='32' style='vertical-align: middle; margin-right: 10px;'/> ChatBot BDM Desktop</h1>
         <p>Commencez une nouvelle conversation ou sélectionnez une conversation existante</p>
     </div>
 </body>

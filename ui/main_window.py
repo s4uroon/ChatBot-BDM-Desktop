@@ -491,7 +491,7 @@ class MainWindow(QMainWindow):
             "About ChatBot BDM Desktop",
             "<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;'>"
             "  <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; margin-bottom: 20px;'>"
-            "    <h1 style='margin: 0; font-size: 28px;'>🤖 ChatBot BDM Desktop</h1>"
+            "    <h1 style='margin: 0; font-size: 28px;'><img src='assets/ChatBot_BDM_Desktop.png' width='32' height='32' style='vertical-align: middle; margin-right: 10px;'/> ChatBot BDM Desktop</h1>"
             "    <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>Professional AI Assistant</p>"
             "  </div>"
             "  "
