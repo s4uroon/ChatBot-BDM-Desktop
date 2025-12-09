@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
         self.current_response = ""
         self.response_mutex = QMutex()  # Protection thread-safe pour current_response
 
-        self.setWindowTitle("🤖 ChatBot BDM Desktop")
+        self.setWindowTitle("ChatBot BDM Desktop")
         self.resize(1200, 800)
 
         # Configuration de l'icône de la fenêtre
