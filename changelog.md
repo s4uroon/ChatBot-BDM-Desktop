@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] - 2025-12-09
+
+### 🐛 Bug Fixes
+
+#### **Fixed AI Response Duplication Issue**
+
+This release fixes a critical bug where AI responses would appear duplicated or questions would disappear during real-time chat interactions.
+
+**Problem:**
+- Users experienced message display issues when asking questions
+- Initial bug: Questions appeared duplicated (Q1, R1, Q2, Q2)
+- After first fix: Questions disappeared when identical to previous ones (Q1: "test", R1, Q2: "test" → only R2 shown)
+- Data was correctly saved in database (confirmed by correct display after session reload)
+
+**Root Causes:**
+
+1. **Asynchronous Render Race Condition** (`ui/chat_widget.py`)
+   - Multiple `_render_html()` calls with async JavaScript callbacks executed out of order
+   - Callbacks could set HTML with outdated message state
+   - Caused visual duplications or message disappearances
+
+2. **Overly Aggressive Duplicate Detection**
+   - First fix checked last 3 messages for duplicates
+   - Blocked legitimate identical questions asked at different times
+   - Example: User asking "test" twice was treated as duplicate
+
+3. **Typing Indicator Removal Issues**
+   - `hide_typing_indicator()` searched through all messages
+   - Could remove wrong messages or leave indicators lingering
+
+**Solutions Implemented:**
+
+1. **Render Versioning System** (`ui/chat_widget.py:252-334`)
+   - Added `_render_version` counter that increments with each render
+   - Callbacks verify their version matches current version before executing
+   - Obsolete callbacks are ignored with warning log
+   - Prevents stale renders from overwriting current state
+
+2. **Refined Duplicate Detection** (`ui/chat_widget.py:170-187`)
+   - Changed from checking last 3 messages to checking only last message
+   - Only blocks if last message has same role AND content (immediate duplicates)
+   - Allows legitimate identical questions at different times
+   - Exception: typing indicators can be duplicated
+
+3. **Improved Typing Indicator Removal** (`ui/chat_widget.py:231-272`)
+   - Limited search scope to last 3 messages (not all)
+   - Breaks after finding first indicator
+   - Added detailed logging for debugging
+
+4. **Version Counter Reset** (`ui/chat_widget.py:222`)
+   - Resets `_render_version` to 0 when loading new conversation
+   - Prevents counter overflow in long sessions
+
+**Technical Details:**
+
+| Component | Change | Impact |
+|-----------|--------|--------|
+| `_render_html()` | Added version tracking | Race conditions eliminated |
+| `append_message()` | Refined duplicate check | Legitimate questions allowed |
+| `hide_typing_indicator()` | Limited search scope | More reliable removal |
+| `load_conversation()` | Reset version counter | Clean state per conversation |
+
+**Behavior:**
+
+| Scenario | Before Fix | After Fix |
+|----------|-----------|-----------|
+| Race condition duplicates | ❌ Displayed | ✅ Blocked |
+| Identical questions at different times | ❌ Blocked | ✅ Allowed |
+| Session reload | ✅ Correct | ✅ Correct |
+| Typing indicator | ⚠️ Sometimes lingered | ✅ Reliably removed |
+
+**Files Modified:**
+- `ui/chat_widget.py`: Core fixes for render race conditions and duplicate detection
+
+**Commits:**
+- `2a23525` - Initial race condition fix with versioning system
+- `8216f93` - Adjusted duplicate detection to allow legitimate questions
+
+---
+
 ## [1.2.0] - 2025-12-07
 
 ### 🎨 Major Update: Highlight.js Bundling & Theme Toggle
