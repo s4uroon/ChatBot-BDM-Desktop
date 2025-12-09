@@ -5,6 +5,7 @@ Génération dynamique de HTML pour l'affichage du chat avec Highlight.js
 """
 
 import re
+import sys
 from typing import List, Dict
 from pathlib import Path
 from .code_parser import CodeParser
@@ -40,6 +41,19 @@ class HTMLGenerator:
         'theme_light_css': None,
     }
 
+    @staticmethod
+    def _get_base_path() -> Path:
+        """
+        Retourne le chemin de base de l'application.
+        Compatible avec PyInstaller (exécutable) et mode développement (script).
+        """
+        if getattr(sys, 'frozen', False):
+            # Exécutable PyInstaller : fichiers extraits dans sys._MEIPASS
+            return Path(sys._MEIPASS)
+        else:
+            # Script Python : chemin relatif depuis ce fichier
+            return Path(__file__).parent.parent
+
     def __init__(self, css_generator: CSSGenerator = None, hljs_theme: str = 'dark'):
         """
         Initialise le générateur HTML.
@@ -52,7 +66,7 @@ class HTMLGenerator:
         self.code_parser = CodeParser()
         self.css_generator = css_generator or CSSGenerator()
         self.hljs_theme = hljs_theme
-        self.assets_dir = Path(__file__).parent.parent / 'assets' / 'highlightjs'
+        self.assets_dir = self._get_base_path() / 'assets' / 'highlightjs'
 
         # Charger les fichiers en cache au premier accès
         self._ensure_cache_loaded()
@@ -336,8 +350,8 @@ class HTMLGenerator:
         Utilise des images si disponibles dans assets/avatars/,
         sinon fallback vers emojis Unicode.
         """
-        # Chemins des images d'avatar
-        avatar_dir = Path(__file__).parent.parent / 'assets' / 'avatars'
+        # Chemins des images d'avatar (compatible PyInstaller)
+        avatar_dir = self._get_base_path() / 'assets' / 'avatars'
 
         # Mapping rôle -> fichier image
         avatar_files = {

@@ -25,9 +25,8 @@ a = Analysis(
     pathex=[str(project_dir)],
     binaries=[],
     datas=[
-        # Pas de fichiers de données à inclure pour le moment
-        # Si vous avez des icônes, images, etc., ajoutez-les ici
-        # Exemple: ('assets', 'assets'),
+        # Inclusion du dossier assets (avatars personnalisés + highlightjs)
+        ('assets', 'assets'),
     ],
     hiddenimports=[
         # PyQt6 imports cachés
@@ -99,8 +98,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # Icône de l'application (à créer si nécessaire)
-    # icon='assets/icon.ico',
+    # Icône de l'application Windows (.ico)
+    icon='assets/ChatBot_BDM_Desktop.ico',
 )
 
 coll = COLLECT(
