@@ -331,13 +331,37 @@ class HTMLGenerator:
         """
     
     def _get_avatar(self, role: str) -> str:
-        """Retourne l'avatar/icône selon le rôle."""
-        avatars = {
+        """Retourne l'avatar/icône selon le rôle.
+
+        Utilise des images si disponibles dans assets/avatars/,
+        sinon fallback vers emojis Unicode.
+        """
+        # Chemins des images d'avatar
+        avatar_dir = Path(__file__).parent.parent / 'assets' / 'avatars'
+
+        # Mapping rôle -> fichier image
+        avatar_files = {
+            'user': 'user.png',
+            'assistant': 'assistant.png',
+            'system': 'system.png'
+        }
+
+        # Emojis de fallback si image non trouvée
+        emoji_fallback = {
             'user': '👤',
             'assistant': '🤖',
             'system': '⚙️'
         }
-        return avatars.get(role, '❓')
+
+        # Vérifier si un fichier image existe pour ce rôle
+        if role in avatar_files:
+            avatar_path = avatar_dir / avatar_files[role]
+            if avatar_path.exists():
+                # Retourner une balise <img> avec le chemin de l'image
+                return f'<img src="file:///{avatar_path.as_posix()}" alt="{role}" class="avatar-img">'
+
+        # Fallback vers emoji
+        return emoji_fallback.get(role, '❓')
     
     def _get_base_css(self) -> str:
         """Retourne le CSS de base pour le chat - THÈME SOMBRE."""
@@ -377,6 +401,18 @@ class HTMLGenerator:
                 font-size: 28px;
                 margin-bottom: 8px;
                 text-align: center;
+                line-height: 1;
+            }
+
+            .message-avatar .avatar-img {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                object-fit: cover;
+                display: inline-block;
+                vertical-align: middle;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                border: 2px solid #3d3d3d;
             }
             
             .message-content {
