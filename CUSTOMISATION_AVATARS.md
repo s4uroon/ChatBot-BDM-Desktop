@@ -150,21 +150,18 @@ Cela permet de :
 Les images sont affichées avec les styles suivants :
 ```css
 .avatar-img {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;          /* Forme circulaire */
+    width: 38px;
+    height: 38px;
     object-fit: cover;           /* Recadrage automatique */
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    border: 2px solid #3d3d3d;
 }
 ```
 
 ### Caractéristiques d'Affichage
-- **Forme** : Circulaire (border-radius: 50%)
-- **Taille** : 32×32 pixels à l'écran
+- **Forme** : Carrée (coins naturels de l'image)
+- **Taille** : 38×38 pixels à l'écran
 - **Position** : Centré au-dessus de chaque message
 - **Ombre** : Légère pour effet de profondeur
-- **Bordure** : 2px gris foncé (#3d3d3d)
 
 ## 🛠️ Dépannage
 

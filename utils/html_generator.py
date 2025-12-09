@@ -493,14 +493,12 @@ class HTMLGenerator:
             }
 
             .message-avatar .avatar-img {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
+                width: 38px;
+                height: 38px;
                 object-fit: cover;
                 display: inline-block;
                 vertical-align: middle;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                border: 2px solid #3d3d3d;
             }
             
             .message-content {
