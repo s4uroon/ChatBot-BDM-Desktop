@@ -201,7 +201,8 @@ class ChatWidget(QWidget):
         Args:
             messages: Liste de messages à afficher
         """
-        self.current_messages = messages
+        # IMPORTANT: Faire une copie pour éviter le partage de référence avec controller.current_messages
+        self.current_messages = [msg.copy() for msg in messages]
         self.should_scroll_to_question = False  # Ne pas scroller lors du chargement
         self._render_version = 0  # Réinitialiser le compteur de version
         self._render_html()

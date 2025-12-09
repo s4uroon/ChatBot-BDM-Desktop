@@ -134,20 +134,21 @@ class MainController(QObject):
     def load_conversation(self, conv_id: int):
         """
         Charge une conversation existante.
-        
+
         Args:
             conv_id: ID de la conversation à charger
         """
         try:
             conv_data = self.db_manager.get_conversation_with_messages(conv_id)
-            
+
             if conv_data:
                 self.current_conversation_id = conv_id
-                self.current_messages = conv_data['messages']
-                
+                # IMPORTANT: Faire une copie pour éviter le partage de référence
+                self.current_messages = [msg.copy() for msg in conv_data['messages']]
+
                 self.logger.debug(f"[CONTROLLER] Conversation {conv_id} chargée: "
                                 f"{len(self.current_messages)} messages")
-                
+
                 self.conversation_loaded.emit(conv_data)
             else:
                 self.error_occurred.emit(f"Conversation {conv_id} introuvable")
