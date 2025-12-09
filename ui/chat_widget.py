@@ -171,21 +171,6 @@ class ChatWidget(QWidget):
                 self.logger.debug(f"[CHAT_WIDGET] Message loading remplacé par réponse finale")
                 return
 
-        # Vérification anti-duplication : bloquer uniquement les duplications IMMÉDIATES (race conditions)
-        # Ne pas bloquer les questions légitimes identiques posées à des moments différents
-        if self.current_messages:
-            last_msg = self.current_messages[-1]
-
-            # Bloquer seulement si le dernier message a le même role ET le même contenu
-            # (indique une race condition, pas une question légitime)
-            if last_msg['role'] == role and last_msg['content'] == content:
-                # Exception : ne pas bloquer les typing indicators (ils peuvent être multiples)
-                if 'typing-indicator' in content:
-                    self.logger.debug(f"[CHAT_WIDGET] Typing indicator multiple détecté (autorisé)")
-                else:
-                    self.logger.warning(f"[CHAT_WIDGET] ⚠️ DUPLICATION IMMÉDIATE DÉTECTÉE - Message ignoré (role: {role})")
-                    return
-
         self.logger.debug("[CHAT_WIDGET] → Ajout d'un nouveau message")
         message = {'role': role, 'content': content}
         self.current_messages.append(message)

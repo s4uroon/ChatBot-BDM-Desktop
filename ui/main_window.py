@@ -4,7 +4,6 @@ ui/main_window.py
 Fenêtre principale de l'application
 """
 
-import time
 from typing import Optional
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
@@ -49,7 +48,6 @@ class MainWindow(QMainWindow):
         self.api_worker: APIWorker = None
         self.current_response = ""
         self.response_mutex = QMutex()  # Protection thread-safe pour current_response
-        self.last_request_time = 0  # Timestamp de la dernière requête API (rate limiting)
 
         self.setWindowTitle("🤖 ChatBot BDM Desktop")
         self.resize(1200, 800)
@@ -261,23 +259,6 @@ class MainWindow(QMainWindow):
     
     def _on_message_submitted(self, message: str):
         """Traite l'envoi d'un message utilisateur."""
-        # Rate limiting : vérifier qu'au moins 1 seconde s'est écoulée
-        current_time = time.time()
-        time_since_last_request = current_time - self.last_request_time
-
-        if time_since_last_request < 1.0 and self.last_request_time > 0:
-            wait_time = 1.0 - time_since_last_request
-            QMessageBox.warning(
-                self,
-                "Ralentissez",
-                f"Veuillez patienter {wait_time:.1f}s entre chaque requête pour éviter de surcharger l'API."
-            )
-            self.logger.warning(f"[MAIN_WINDOW] Rate limit: trop rapide ({time_since_last_request:.2f}s)")
-            return
-
-        # Mettre à jour le timestamp
-        self.last_request_time = current_time
-
         # Ajouter le message à l'affichage
         self.chat_widget.append_message('user', message)
 
