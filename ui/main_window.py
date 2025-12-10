@@ -110,7 +110,7 @@ class MainWindow(QMainWindow):
         # Tailles du splitter
         splitter.setStretchFactor(0, 0)  # Sidebar fixe
         splitter.setStretchFactor(1, 1)  # Centre extensible
-        splitter.setSizes([180, 1020])
+        splitter.setSizes([190, 1010])
         
         main_layout.addWidget(splitter)
         
