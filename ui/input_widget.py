@@ -51,7 +51,7 @@ class InputWidget(QWidget):
     
     Fonctionnalités:
     - Zone de texte multi-lignes
-    - Compteur de caractères (max 10000)
+    - Compteur de caractères (max 100000)
     - Bouton Envoyer
     - Raccourcis: Entrée = Envoyer, Shift+Entrée = Nouvelle ligne
     """
@@ -60,7 +60,7 @@ class InputWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.max_chars = 10000
+        self.max_chars = 100000
         self.setup_ui()
     
     def setup_ui(self):
@@ -73,7 +73,7 @@ class InputWidget(QWidget):
         counter_layout = QHBoxLayout()
         counter_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.char_counter = QLabel("0 chars (~0 tokens) / 10000")
+        self.char_counter = QLabel("0 chars (~0 tokens) / 100000")
         self.char_counter.setStyleSheet("color: #909090; font-size: 11px;")
         counter_layout.addStretch()
         counter_layout.addWidget(self.char_counter)
