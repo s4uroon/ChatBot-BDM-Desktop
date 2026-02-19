@@ -39,6 +39,8 @@ class SettingsManager:
         'ui/window_height': 800,
         'ui/sidebar_width': 280,
         'ui/theme': 'light',
+        'ui/chat_splitter_top': 0,       # Taille du panneau chat (0 = défaut automatique)
+        'ui/chat_splitter_bottom': 0,    # Taille du panneau input (0 = défaut automatique)
         
         # Behavior
         'behavior/auto_scroll': True,
@@ -225,10 +227,24 @@ class SettingsManager:
     def get_theme(self) -> str:
         """Retourne le thème ('light' ou 'dark')."""
         return self._get('ui/theme', str)
-    
+
     def set_theme(self, theme: str):
         """Définit le thème."""
         self._set('ui/theme', theme)
+
+    def get_chat_splitter_sizes(self) -> list[int]:
+        """Retourne les tailles du splitter chat/input [top, bottom]. Retourne [] si non défini."""
+        top = self._get('ui/chat_splitter_top', int)
+        bottom = self._get('ui/chat_splitter_bottom', int)
+        if top > 0 and bottom > 0:
+            return [top, bottom]
+        return []
+
+    def set_chat_splitter_sizes(self, sizes: list[int]):
+        """Sauvegarde les tailles du splitter chat/input."""
+        if len(sizes) == 2:
+            self._set('ui/chat_splitter_top', sizes[0])
+            self._set('ui/chat_splitter_bottom', sizes[1])
     
     # === BEHAVIOR SETTINGS ===
     
