@@ -6,8 +6,6 @@ Fenêtre principale de l'application
 
 from typing import Optional
 from pathlib import Path
-import base64
-import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar
@@ -19,9 +17,12 @@ from .chat_widget import ChatWidget
 from .input_widget import InputWidget, estimate_tokens
 from .settings_dialog import SettingsDialog
 from workers.api_worker import APIWorker
+from workers.title_worker import TitleWorker
 from core.main_controller import MainController
 from core.logger import get_logger
 from core.paths import get_icon_path
+from core.constants import APP_NAME, APP_VERSION, APP_CREATOR, WORKER_WAIT_TIMEOUT_MS
+from utils.logo_utils import get_logo_base64
 
 
 class MainWindow(QMainWindow):
@@ -50,6 +51,7 @@ class MainWindow(QMainWindow):
 
         # Worker API (sera créé à chaque requête)
         self.api_worker: APIWorker = None
+        self.title_worker: TitleWorker = None
         self.current_response = ""
         self.response_mutex = QMutex()  # Protection thread-safe pour current_response
 
@@ -187,6 +189,84 @@ class MainWindow(QMainWindow):
         search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         search_shortcut.activated.connect(self._on_focus_search)
 
+    # === TAGS ===
+
+    def _refresh_tags(self):
+        """Rafraîchit la liste des tags dans la sidebar."""
+        tags = self.controller.tag_manager.get_all_tags()
+        self.sidebar.load_tags(tags)
+
+    def _on_tag_filter_changed(self, tag_id: int):
+        """Filtre les conversations par tag."""
+        if tag_id == -1:
+            self.controller.refresh_conversations_list()
+        else:
+            conversations = self.controller.tag_manager.get_conversations_by_tag(tag_id)
+            self.sidebar.load_conversations(conversations)
+
+    def _on_tag_conversation(self, conversation_id: int, tag_id: int):
+        """Ajoute un tag à une conversation."""
+        self.controller.tag_manager.add_tag_to_conversation(conversation_id, tag_id)
+        tags = self.controller.tag_manager.get_conversation_tags(conversation_id)
+        self.sidebar.set_conversation_tags(conversation_id, tags)
+
+    def _on_untag_conversation(self, conversation_id: int, tag_id: int):
+        """Retire un tag d'une conversation."""
+        self.controller.tag_manager.remove_tag_from_conversation(conversation_id, tag_id)
+        tags = self.controller.tag_manager.get_conversation_tags(conversation_id)
+        self.sidebar.set_conversation_tags(conversation_id, tags)
+
+    def _on_create_tag(self, name: str, color: str):
+        """Crée un nouveau tag."""
+        self.controller.tag_manager.create_tag(name, color)
+        self._refresh_tags()
+        self.status_bar.showMessage(f"Tag '{name}' created", 3000)
+
+    def _on_delete_tag(self, tag_id: int):
+        """Supprime un tag."""
+        self.controller.tag_manager.delete_tag(tag_id)
+        self._refresh_tags()
+        self.status_bar.showMessage("Tag deleted", 3000)
+
+    # === DRAFT ===
+
+    def _on_draft_changed(self):
+        """Déclenche la sauvegarde du brouillon avec debounce."""
+        self._draft_save_timer.stop()
+        self._draft_save_timer.start()
+
+    def _save_draft(self):
+        """Sauvegarde le brouillon dans les settings."""
+        text = self.input_widget.text_edit.toPlainText()
+        self.controller.settings_manager.set_draft(text)
+
+    def _start_title_worker(self, conversation_id: int, user_message: str):
+        """Lance le worker de génération de titre en arrière-plan."""
+        try:
+            # Nettoyer un éventuel ancien title worker
+            if self.title_worker and self.title_worker.isRunning():
+                self.title_worker.wait(2000)
+
+            self.title_worker = TitleWorker(
+                self.controller.api_client,
+                conversation_id,
+                user_message
+            )
+            self.title_worker.title_generated.connect(self._on_title_generated)
+            self.title_worker.start()
+            self.logger.debug(f"[MAIN_WINDOW] Title worker lancé pour conversation {conversation_id}")
+        except Exception as e:
+            self.logger.warning(f"[MAIN_WINDOW] Erreur lancement title worker: {e}")
+
+    def _on_title_generated(self, conversation_id: int, title: str):
+        """Callback quand un titre est généré par l'API."""
+        try:
+            self.controller.db_manager.update_conversation_title(conversation_id, title)
+            self.controller.refresh_conversations_list()
+            self.logger.debug(f"[MAIN_WINDOW] Titre auto-généré: '{title}' pour conversation {conversation_id}")
+        except Exception as e:
+            self.logger.warning(f"[MAIN_WINDOW] Erreur mise à jour titre auto: {e}")
+
     def _on_chat_splitter_moved(self, pos: int, index: int):
         """Sauvegarde la position du splitter chat/input quand l'utilisateur le déplace."""
         sizes = self.chat_input_splitter.sizes()
@@ -214,10 +294,22 @@ class MainWindow(QMainWindow):
         self.sidebar.new_conversation_requested.connect(self._on_new_conversation)
         self.sidebar.delete_conversations_requested.connect(self._on_delete_conversations)
         self.sidebar.rename_conversation_requested.connect(self._on_rename_conversation)
-        
+        self.sidebar.tag_filter_changed.connect(self._on_tag_filter_changed)
+        self.sidebar.tag_conversation_requested.connect(self._on_tag_conversation)
+        self.sidebar.untag_conversation_requested.connect(self._on_untag_conversation)
+        self.sidebar.create_tag_requested.connect(self._on_create_tag)
+        self.sidebar.delete_tag_requested.connect(self._on_delete_tag)
+
         # Input
         self.input_widget.message_submitted.connect(self._on_message_submitted)
-        
+        self.input_widget.text_edit.textChanged.connect(self._on_draft_changed)
+
+        # Timer debounce pour sauvegarde du brouillon (500ms)
+        self._draft_save_timer = QTimer()
+        self._draft_save_timer.setSingleShot(True)
+        self._draft_save_timer.setInterval(500)
+        self._draft_save_timer.timeout.connect(self._save_draft)
+
         # Contrôleur
         self.controller.conversation_loaded.connect(self._on_conversation_loaded)
         self.controller.conversations_list_updated.connect(self._on_conversations_list_updated)
@@ -227,6 +319,15 @@ class MainWindow(QMainWindow):
     def load_initial_data(self):
         """Charge les données initiales."""
         self.controller.refresh_conversations_list()
+
+        # Charger les tags
+        self._refresh_tags()
+
+        # Restaurer le brouillon sauvegardé
+        draft = self.controller.settings_manager.get_draft()
+        if draft:
+            self.input_widget.text_edit.setPlainText(draft)
+            self.logger.debug(f"[MAIN_WINDOW] Brouillon restauré ({len(draft)} chars)")
     
     # === GESTION DES CONVERSATIONS ===
     
@@ -276,6 +377,11 @@ class MainWindow(QMainWindow):
     def _on_conversations_list_updated(self, conversations: list):
         """Met à jour la liste des conversations."""
         self.sidebar.load_conversations(conversations)
+
+        # Mettre à jour le cache des tags pour chaque conversation visible
+        for conv in conversations:
+            tags = self.controller.tag_manager.get_conversation_tags(conv['id'])
+            self.sidebar.set_conversation_tags(conv['id'], tags)
     
     def _on_search_in_messages(self, query: str):
         """Recherche dans les messages des conversations."""
@@ -293,6 +399,9 @@ class MainWindow(QMainWindow):
     
     def _on_message_submitted(self, message: str):
         """Traite l'envoi d'un message utilisateur."""
+        # Effacer le brouillon
+        self.controller.settings_manager.set_draft('')
+
         # Ajouter le message à l'affichage
         self.chat_widget.append_message('user', message)
 
@@ -358,7 +467,10 @@ class MainWindow(QMainWindow):
             if self.api_worker.is_running():
                 self.logger.debug("[MAIN_WINDOW] Arrêt du worker en cours...")
                 self.api_worker.stop()
-                self.api_worker.wait()  # Attendre la fin du thread
+                if not self.api_worker.wait(WORKER_WAIT_TIMEOUT_MS):
+                    self.logger.warning("[MAIN_WINDOW] Worker n'a pas terminé dans le délai imparti, terminaison forcée")
+                    self.api_worker.terminate()
+                    self.api_worker.wait(2000)
             self.api_worker = None
             self.logger.debug("[MAIN_WINDOW] Worker nettoyé")
 
@@ -383,21 +495,38 @@ class MainWindow(QMainWindow):
         self.input_widget.set_enabled(True)
         self.input_widget.set_focus()
 
-        self.status_bar.showMessage("✅ Response generated", 3000)
+        # Calculer les tokens de la conversation
+        total_tokens = self._calculate_conversation_tokens(self.controller.current_messages)
+        msg_count = len(self.controller.current_messages)
+        self.status_bar.showMessage(
+            f"✅ Response generated | {msg_count} messages | ~{total_tokens} tokens", 5000
+        )
+
+        # Auto-titrage : si c'est la première réponse (2 messages : user + assistant)
+        if (len(self.controller.current_messages) == 2
+                and self.controller.api_client
+                and self.controller.current_conversation_id):
+            first_user_msg = self.controller.current_messages[0].get('content', '')
+            self._start_title_worker(self.controller.current_conversation_id, first_user_msg)
 
         # Nettoyer le worker de manière thread-safe
         self._cleanup_worker()
-        self.current_response = ""
+        self.response_mutex.lock()
+        try:
+            self.current_response = ""
+        finally:
+            self.response_mutex.unlock()
 
     def _on_api_error(self, error_msg: str):
         """Erreur lors de l'appel API."""
-        # Cacher l'indicateur de frappe
-        self.chat_widget.hide_typing_indicator()
-
-        self._on_error(error_msg)
-        self.input_widget.set_enabled(True)
-        # Nettoyer le worker de manière thread-safe
-        self._cleanup_worker()
+        try:
+            self.chat_widget.hide_typing_indicator()
+        except Exception as e:
+            self.logger.warning(f"[MAIN_WINDOW] Erreur lors du masquage de l'indicateur: {e}")
+        finally:
+            self._on_error(error_msg)
+            self.input_widget.set_enabled(True)
+            self._cleanup_worker()
     
     # === MENUS ===
     
@@ -505,20 +634,9 @@ class MainWindow(QMainWindow):
 
         self.status_bar.showMessage("✅ Paramètres mis à jour", 3000)
 
-    def _get_logo_base64(self):
-        """Retourne le logo encodé en base64 pour l'inclure dans le HTML."""
-        try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'ChatBot_BDM_Desktop_256.png')
-            with open(logo_path, 'rb') as f:
-                logo_data = base64.b64encode(f.read()).decode('utf-8')
-                return f"data:image/png;base64,{logo_data}"
-        except Exception as e:
-            self.logger.warning(f"[MAIN_WINDOW] Impossible de charger le logo: {e}")
-            return ""
-
     def _on_about(self):
         """Affiche la fenêtre À propos."""
-        logo_src = self._get_logo_base64()
+        logo_src = get_logo_base64()
         logo_img = f"<img src='{logo_src}' width='32' height='32' style='vertical-align: middle; margin-right: 10px;'/>" if logo_src else "🤖"
 
         about_text = (
@@ -529,8 +647,8 @@ class MainWindow(QMainWindow):
             f"  </div>"
             f"  "
             f"  <div style='padding: 15px; border-radius: 8px; margin-bottom: 15px;'>"
-            f"    <p style='margin: 5px 0;'><b>Version:</b> 2.0.1</p>"
-            f"    <p style='margin: 5px 0;'><b>Creator:</b> Gwendal CHAIGNEAU BOEZENNEC</p>"
+            f"    <p style='margin: 5px 0;'><b>Version:</b> {APP_VERSION}</p>"
+            f"    <p style='margin: 5px 0;'><b>Creator:</b> {APP_CREATOR}</p>"
             f"    <p style='margin: 5px 0;'><b>Framework:</b> PyQt6 + Qt WebEngine</p>"
             f"    <p style='margin: 5px 0;'><b>API:</b> OpenAI Compatible</p>"
             f"  </div>"

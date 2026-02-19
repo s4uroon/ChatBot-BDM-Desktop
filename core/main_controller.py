@@ -11,6 +11,9 @@ from .database import DatabaseManager
 from .api_client import APIClient
 from .settings_manager import SettingsManager
 from .export_manager import ExportManager
+from .conversation_manager import ConversationManager
+from .tag_manager import TagManager
+from .constants import AUTO_TITLE_MAX_LENGTH
 
 
 class MainController(QObject):
@@ -54,12 +57,16 @@ class MainController(QObject):
             self.settings_manager = SettingsManager()
 
         self.export_manager = ExportManager()
-        
+
+        # Sous-gestionnaires dédiés
+        self.conversation_manager = ConversationManager(self.db_manager)
+        self.tag_manager = TagManager(self.db_manager)
+
         # État
         self.current_conversation_id: Optional[int] = None
         self.current_messages: List[dict] = []
         self.api_client: Optional[APIClient] = None
-        
+
         # Initialisation
         self._initialize_api_client()
         self.logger.debug("[CONTROLLER] Initialisé")
@@ -195,6 +202,11 @@ class MainController(QObject):
     
     # === GESTION DES MESSAGES ===
     
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Estime le nombre de tokens (~4 caractères par token)."""
+        return max(1, len(text) // 4) if text else 0
+
     def send_message(self, user_message: str):
         """
         Envoie un message et déclenche la réponse de l'API.
@@ -207,36 +219,30 @@ class MainController(QObject):
             return
 
         if not self.current_conversation_id:
-            # Créer une conversation automatiquement
             title = self._generate_title_from_message(user_message)
             self.create_new_conversation(title)
         elif len(self.current_messages) == 0:
-            # C'est le premier message d'une conversation existante (créée via "New")
-            # Mettre à jour le titre avec les 25 premiers caractères du message
             new_title = self._generate_title_from_message(user_message)
             self.db_manager.update_conversation_title(self.current_conversation_id, new_title)
             self.refresh_conversations_list()
             self.logger.debug(f"[CONTROLLER] Titre mis à jour: '{new_title}'")
 
         try:
-            # Sauvegarde du message utilisateur
+            tokens = self._estimate_tokens(user_message)
             self.db_manager.add_message(
                 self.current_conversation_id,
                 'user',
-                user_message
+                user_message,
+                tokens
             )
-            
-            # Ajout au contexte
+
             self.current_messages.append({
                 'role': 'user',
                 'content': user_message
             })
-            
-            self.logger.debug(f"[CONTROLLER] Message utilisateur ajouté")
-            
-            # Déclencher le worker pour le streaming (sera fait dans main_window.py)
-            # Ici on prépare juste les données
-            
+
+            self.logger.debug(f"[CONTROLLER] Message utilisateur ajouté (~{tokens} tokens)")
+
         except Exception as e:
             self.logger.error(f"[CONTROLLER] Envoi message", exc_info=True)
             self.error_occurred.emit(f"Erreur lors de l'envoi: {str(e)}")
@@ -244,31 +250,32 @@ class MainController(QObject):
     def save_assistant_message(self, content: str):
         """
         Sauvegarde la réponse complète de l'assistant.
-        
+
         Args:
             content: Contenu de la réponse
         """
         try:
             if self.current_conversation_id:
+                tokens = self._estimate_tokens(content)
                 self.db_manager.add_message(
                     self.current_conversation_id,
                     'assistant',
-                    content
+                    content,
+                    tokens
                 )
-                
+
                 self.current_messages.append({
                     'role': 'assistant',
                     'content': content
                 })
-                
-                self.logger.debug(f"[CONTROLLER] Réponse assistant sauvegardée")
-        
+
+                self.logger.debug(f"[CONTROLLER] Réponse assistant sauvegardée (~{tokens} tokens)")
+
         except Exception as e:
             self.logger.error(f"[CONTROLLER] Sauvegarde réponse", exc_info=True)
     
-    def _generate_title_from_message(self, message: str, max_length: int = 25) -> str:
-        """Génère un titre de conversation à partir du premier message (25 premiers caractères)."""
-        # Nettoyer et tronquer à 25 caractères
+    def _generate_title_from_message(self, message: str, max_length: int = AUTO_TITLE_MAX_LENGTH) -> str:
+        """Génère un titre de conversation à partir du premier message (fallback sans API)."""
         title = message.strip()
         if len(title) > max_length:
             title = title[:max_length] + "..."

@@ -7,6 +7,7 @@ Zone de saisie des messages avec bouton d'envoi
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent
+from core.constants import MAX_INPUT_CHARS
 
 
 def estimate_tokens(text: str) -> int:
@@ -60,7 +61,7 @@ class InputWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.max_chars = 100000
+        self.max_chars = MAX_INPUT_CHARS
         self.setup_ui()
     
     def setup_ui(self):
@@ -73,7 +74,7 @@ class InputWidget(QWidget):
         counter_layout = QHBoxLayout()
         counter_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.char_counter = QLabel("0 chars (~0 tokens) / 100000")
+        self.char_counter = QLabel(f"0 chars (~0 tokens) / {self.max_chars}")
         self.char_counter.setStyleSheet("color: #909090; font-size: 11px;")
         counter_layout.addStretch()
         counter_layout.addWidget(self.char_counter)

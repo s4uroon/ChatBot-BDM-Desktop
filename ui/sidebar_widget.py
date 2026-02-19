@@ -7,12 +7,12 @@ Widget de la barre latérale avec historique des conversations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
     QPushButton, QListWidgetItem, QLabel, QMessageBox, QLineEdit,
-    QInputDialog, QMenu
+    QInputDialog, QMenu, QComboBox, QColorDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 from core.logger import get_logger
 
 
@@ -74,11 +74,18 @@ class SidebarWidget(QWidget):
     delete_conversations_requested = pyqtSignal(list)  # Liste des IDs à supprimer
     rename_conversation_requested = pyqtSignal(int, str)  # ID et nouveau titre
     search_requested = pyqtSignal(str)  # Terme de recherche
+    tag_filter_changed = pyqtSignal(int)  # ID du tag sélectionné (-1 = tous)
+    tag_conversation_requested = pyqtSignal(int, int)  # (conversation_id, tag_id)
+    untag_conversation_requested = pyqtSignal(int, int)  # (conversation_id, tag_id)
+    create_tag_requested = pyqtSignal(str, str)  # (name, color)
+    delete_tag_requested = pyqtSignal(int)  # tag_id
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.logger = get_logger()
         self.all_conversations = []  # Stockage de toutes les conversations
+        self.all_tags: List[Dict] = []  # Tous les tags disponibles
+        self.conversation_tags_cache: Dict[int, List[Dict]] = {}  # Cache tags par conversation
 
         # Timer pour debounce de la recherche (évite une requête DB à chaque caractère)
         self.search_timer = QTimer()
@@ -123,8 +130,60 @@ class SidebarWidget(QWidget):
         search_layout.addWidget(self.search_input)
         
         layout.addLayout(search_layout)
-        
-        
+
+        # Filtre par tag
+        tag_filter_layout = QHBoxLayout()
+        tag_filter_layout.setContentsMargins(5, 0, 5, 5)
+
+        self.tag_filter_combo = QComboBox()
+        self.tag_filter_combo.addItem("🏷️ All tags", -1)
+        self.tag_filter_combo.currentIndexChanged.connect(self._on_tag_filter_changed)
+        self.tag_filter_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #252525;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                padding: 4px 6px;
+                color: #e0e0e0;
+                font-size: 11px;
+            }
+            QComboBox:hover {
+                border-color: #4CAF50;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #252525;
+                border: 1px solid #3d3d3d;
+                color: #e0e0e0;
+                selection-background-color: #2d5f2d;
+            }
+        """)
+        tag_filter_layout.addWidget(self.tag_filter_combo)
+
+        # Bouton gérer les tags
+        manage_tags_btn = QPushButton("⚙")
+        manage_tags_btn.setToolTip("Manage tags")
+        manage_tags_btn.setMaximumWidth(30)
+        manage_tags_btn.clicked.connect(self._on_manage_tags)
+        manage_tags_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3d3d3d;
+                color: #e0e0e0;
+                border: 1px solid #4d4d4d;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #4d4d4d;
+            }
+        """)
+        tag_filter_layout.addWidget(manage_tags_btn)
+
+        layout.addLayout(tag_filter_layout)
+
         # Liste des conversations avec sélection multiple
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
@@ -302,6 +361,19 @@ class SidebarWidget(QWidget):
         rename_action = menu.addAction("✏️ Rename")
         rename_action.triggered.connect(lambda: self._rename_conversation(conv_id))
 
+        # Sous-menu Tags
+        if self.all_tags:
+            tags_menu = menu.addMenu("🏷️ Tags")
+            conv_tag_ids = [t['id'] for t in self.conversation_tags_cache.get(conv_id, [])]
+
+            for tag in self.all_tags:
+                tag_action = tags_menu.addAction(f"{'✓ ' if tag['id'] in conv_tag_ids else '  '}{tag['name']}")
+                tag_id = tag['id']
+                if tag_id in conv_tag_ids:
+                    tag_action.triggered.connect(lambda checked, cid=conv_id, tid=tag_id: self.untag_conversation_requested.emit(cid, tid))
+                else:
+                    tag_action.triggered.connect(lambda checked, cid=conv_id, tid=tag_id: self.tag_conversation_requested.emit(cid, tid))
+
         menu.addSeparator()
 
         # Action Supprimer
@@ -405,6 +477,78 @@ class SidebarWidget(QWidget):
         """Efface la recherche."""
         self.search_input.clear()
     
+    # === TAGS ===
+
+    def load_tags(self, tags: List[Dict]):
+        """Charge les tags dans le filtre."""
+        self.all_tags = tags
+        current_data = self.tag_filter_combo.currentData()
+
+        self.tag_filter_combo.blockSignals(True)
+        self.tag_filter_combo.clear()
+        self.tag_filter_combo.addItem("🏷️ All tags", -1)
+        for tag in tags:
+            self.tag_filter_combo.addItem(f"● {tag['name']}", tag['id'])
+        self.tag_filter_combo.blockSignals(False)
+
+        # Restaurer la sélection précédente si possible
+        if current_data and current_data != -1:
+            idx = self.tag_filter_combo.findData(current_data)
+            if idx >= 0:
+                self.tag_filter_combo.setCurrentIndex(idx)
+
+    def set_conversation_tags(self, conversation_id: int, tags: List[Dict]):
+        """Met à jour le cache des tags pour une conversation."""
+        self.conversation_tags_cache[conversation_id] = tags
+
+    def _on_tag_filter_changed(self, index: int):
+        """Filtre les conversations par tag."""
+        tag_id = self.tag_filter_combo.currentData()
+        if tag_id is not None:
+            self.tag_filter_changed.emit(tag_id)
+
+    def _on_manage_tags(self):
+        """Ouvre une boîte de dialogue pour gérer les tags."""
+        menu = QMenu(self)
+
+        # Option créer un tag
+        create_action = menu.addAction("➕ New tag")
+        create_action.triggered.connect(self._create_new_tag)
+
+        if self.all_tags:
+            menu.addSeparator()
+            # Lister les tags existants avec option de suppression
+            for tag in self.all_tags:
+                tag_menu = menu.addMenu(f"● {tag['name']}")
+                delete_action = tag_menu.addAction("🗑️ Delete this tag")
+                tag_id = tag['id']
+                delete_action.triggered.connect(lambda checked, tid=tag_id: self._confirm_delete_tag(tid))
+
+        menu.exec(self.mapToGlobal(self.tag_filter_combo.geometry().bottomLeft()))
+
+    def _create_new_tag(self):
+        """Crée un nouveau tag via dialogue."""
+        name, ok = QInputDialog.getText(
+            self, "New Tag", "Tag name:"
+        )
+        if ok and name.strip():
+            color = QColorDialog.getColor(QColor('#4CAF50'), self, "Tag color")
+            if color.isValid():
+                self.create_tag_requested.emit(name.strip(), color.name())
+            else:
+                self.create_tag_requested.emit(name.strip(), '#4CAF50')
+
+    def _confirm_delete_tag(self, tag_id: int):
+        """Confirme la suppression d'un tag."""
+        reply = QMessageBox.question(
+            self, "Delete Tag",
+            "Delete this tag? (Conversations won't be deleted)",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.delete_tag_requested.emit(tag_id)
+
     def keyPressEvent(self, event):
         """Gère les raccourcis clavier."""
         # Suppr pour supprimer

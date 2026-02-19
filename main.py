@@ -13,6 +13,7 @@ from PyQt6.QtGui import QIcon
 from ui.main_window import MainWindow
 from core.logger import LoggerSetup
 from core.paths import init_user_paths, get_icon_path
+from core.constants import APP_NAME, APP_VERSION, APP_ORGANIZATION, APP_ID
 
 
 def is_portable_mode() -> bool:
@@ -82,261 +83,29 @@ Exemples d'utilisation:
     parser.add_argument(
         '--version',
         action='version',
-        version='Chatbot Desktop v1.0.0'
+        version=f'Chatbot Desktop v{APP_VERSION}'
     )
 
     return parser.parse_args()
 
 
 def setup_application_style():
-    """Configure le style global de l'application - MODE SOMBRE."""
-    # Style Qt moderne - Thème Sombre
-    style = """
-    /* === FENÊTRE PRINCIPALE === */
-    QMainWindow {
-        background-color: #1e1e1e;
-    }
-    
-    QWidget {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-    }
-    
-    /* === MENUS === */
-    QMenuBar {
-        background-color: #2d2d2d;
-        border-bottom: 1px solid #3d3d3d;
-        padding: 4px;
-        color: #e0e0e0;
-    }
-    
-    QMenuBar::item {
-        padding: 6px 12px;
-        background: transparent;
-        color: #e0e0e0;
-    }
-    
-    QMenuBar::item:selected {
-        background-color: #3d3d3d;
-        color: #ffffff;
-    }
-    
-    QMenu {
-        background-color: #2d2d2d;
-        border: 1px solid #3d3d3d;
-        color: #e0e0e0;
-    }
-    
-    QMenu::item {
-        padding: 8px 25px;
-        color: #e0e0e0;
-    }
-    
-    QMenu::item:selected {
-        background-color: #3d3d3d;
-        color: #ffffff;
-    }
-    
-    /* === BARRE DE STATUT === */
-    QStatusBar {
-        background-color: #2d2d2d;
-        border-top: 1px solid #3d3d3d;
-        font-size: 12px;
-        color: #b0b0b0;
-    }
-    
-    /* === SPLITTER === */
-    QSplitter::handle:horizontal {
-        background-color: #3d3d3d;
-        width: 2px;
-    }
-
-    QSplitter::handle:horizontal:hover {
-        background-color: #4CAF50;
-    }
-
-    QSplitter::handle:vertical {
-        background-color: #3d3d3d;
-        height: 5px;
-    }
-
-    QSplitter::handle:vertical:hover {
-        background-color: #4CAF50;
-    }
-    
-    /* === GROUPBOX === */
-    QGroupBox {
-        border: 1px solid #3d3d3d;
-        border-radius: 4px;
-        margin-top: 10px;
-        padding-top: 10px;
-        font-weight: bold;
-        color: #e0e0e0;
-        background-color: #252525;
-    }
-    
-    QGroupBox::title {
-        subcontrol-origin: margin;
-        left: 10px;
-        padding: 0 5px;
-        color: #4CAF50;
-    }
-    
-    /* === SCROLLBAR === */
-    QScrollBar:vertical {
-        border: none;
-        background: #2d2d2d;
-        width: 12px;
-        border-radius: 6px;
-    }
-    
-    QScrollBar::handle:vertical {
-        background: #4d4d4d;
-        border-radius: 6px;
-        min-height: 20px;
-    }
-    
-    QScrollBar::handle:vertical:hover {
-        background: #5d5d5d;
-    }
-    
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-        height: 0px;
-    }
-    
-    QScrollBar:horizontal {
-        border: none;
-        background: #2d2d2d;
-        height: 12px;
-        border-radius: 6px;
-    }
-    
-    QScrollBar::handle:horizontal {
-        background: #4d4d4d;
-        border-radius: 6px;
-        min-width: 20px;
-    }
-    
-    QScrollBar::handle:horizontal:hover {
-        background: #5d5d5d;
-    }
-    
-    /* === LABELS === */
-    QLabel {
-        color: #e0e0e0;
-        background-color: transparent;
-    }
-    
-    /* === INPUTS === */
-    QLineEdit, QTextEdit {
-        background-color: #2d2d2d;
-        border: 1px solid #3d3d3d;
-        border-radius: 4px;
-        padding: 6px;
-        color: #e0e0e0;
-        selection-background-color: #4CAF50;
-        selection-color: #ffffff;
-    }
-    
-    QLineEdit:focus, QTextEdit:focus {
-        border: 1px solid #4CAF50;
-    }
-    
-    QLineEdit:disabled, QTextEdit:disabled {
-        background-color: #252525;
-        color: #707070;
-    }
-    
-    /* === BOUTONS === */
-    QPushButton {
-        background-color: #3d3d3d;
-        color: #e0e0e0;
-        border: 1px solid #4d4d4d;
-        border-radius: 4px;
-        padding: 8px 16px;
-        font-weight: normal;
-    }
-    
-    QPushButton:hover {
-        background-color: #4d4d4d;
-        border: 1px solid #5d5d5d;
-    }
-    
-    QPushButton:pressed {
-        background-color: #2d2d2d;
-    }
-    
-    QPushButton:disabled {
-        background-color: #252525;
-        color: #606060;
-        border: 1px solid #353535;
-    }
-    
-    /* === CHECKBOX === */
-    QCheckBox {
-        color: #e0e0e0;
-        spacing: 8px;
-    }
-    
-    QCheckBox::indicator {
-        width: 18px;
-        height: 18px;
-        border: 1px solid #4d4d4d;
-        border-radius: 3px;
-        background-color: #2d2d2d;
-    }
-    
-    QCheckBox::indicator:checked {
-        background-color: #4CAF50;
-        border: 1px solid #4CAF50;
-    }
-    
-    QCheckBox::indicator:hover {
-        border: 1px solid #5d5d5d;
-    }
-    
-    /* === TABS === */
-    QTabWidget::pane {
-        border: 1px solid #3d3d3d;
-        background-color: #252525;
-    }
-    
-    QTabBar::tab {
-        background-color: #2d2d2d;
-        color: #b0b0b0;
-        padding: 8px 20px;
-        border: 1px solid #3d3d3d;
-        border-bottom: none;
-        border-top-left-radius: 4px;
-        border-top-right-radius: 4px;
-    }
-    
-    QTabBar::tab:selected {
-        background-color: #252525;
-        color: #4CAF50;
-        border-bottom: 2px solid #4CAF50;
-    }
-    
-    QTabBar::tab:hover {
-        background-color: #3d3d3d;
-    }
-    
-    /* === DIALOG === */
-    QDialog {
-        background-color: #1e1e1e;
-    }
-    
-    /* === MESSAGEBOX === */
-    QMessageBox {
-        background-color: #1e1e1e;
-    }
-    
-    QMessageBox QLabel {
-        color: #e0e0e0;
-    }
     """
-    
-    return style
+    Configure le style global de l'application.
+    Charge le fichier QSS externe depuis assets/style.qss.
+    """
+    style_path = Path(__file__).parent / 'assets' / 'style.qss'
+    try:
+        if style_path.exists():
+            return style_path.read_text(encoding='utf-8')
+        # Fallback pour mode PyInstaller
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            style_path = Path(sys._MEIPASS) / 'assets' / 'style.qss'
+            if style_path.exists():
+                return style_path.read_text(encoding='utf-8')
+        return ""
+    except Exception:
+        return ""
 
 
 def main():
@@ -362,7 +131,7 @@ def main():
     logger.info("="*70)
     logger.info("CHATBOT DESKTOP - DÉMARRAGE")
     logger.info("="*70)
-    logger.info(f"Version: 1.0.0")
+    logger.info(f"Version: {APP_VERSION}")
     logger.info(f"Mode: {'PORTABLE' if portable else 'NORMAL'}")
     logger.info(f"Mode debug: {'ACTIVÉ' if args.debug else 'DÉSACTIVÉ'}")
     logger.info(f"Répertoire application: {user_paths.get_app_dir()}")
@@ -374,9 +143,9 @@ def main():
     app = QApplication(sys.argv)
 
     # Configuration de l'application
-    app.setApplicationName("ChatBot BDM Desktop")
-    app.setOrganizationName("ChatbotBDM")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationName(APP_NAME)
+    app.setOrganizationName(APP_ORGANIZATION)
+    app.setApplicationVersion(APP_VERSION)
 
     # Configuration de l'icône de l'application
     try:
@@ -396,7 +165,7 @@ def main():
             import ctypes
             # Définir l'AppUserModelID pour Windows 7+
             # Cela permet à Windows de regrouper correctement l'application dans la barre des tâches
-            myappid = 'ChatbotBDM.ChatBotBDMDesktop.1.0.0'
+            myappid = APP_ID
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
             logger.debug(f"AppUserModelID Windows configuré: {myappid}")
         except Exception as e:

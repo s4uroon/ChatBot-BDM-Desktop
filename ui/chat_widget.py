@@ -10,9 +10,8 @@ from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from PyQt6.QtGui import QContextMenuEvent
 from typing import List, Dict, Optional
 from utils.html_generator import HTMLGenerator
+from utils.logo_utils import get_logo_base64
 from core.logger import get_logger
-import base64
-import os
 
 
 class CustomWebEngineView(QWebEngineView):
@@ -99,20 +98,9 @@ class ChatWidget(QWidget):
         
         layout.addWidget(self.web_view)
 
-    def _get_logo_base64(self):
-        """Retourne le logo encodé en base64 pour l'inclure dans le HTML."""
-        try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'ChatBot_BDM_Desktop_256.png')
-            with open(logo_path, 'rb') as f:
-                logo_data = base64.b64encode(f.read()).decode('utf-8')
-                return f"data:image/png;base64,{logo_data}"
-        except Exception as e:
-            self.logger.warning(f"[CHAT_WIDGET] Impossible de charger le logo: {e}")
-            return ""
-
     def load_empty_page(self):
         """Charge une page vide au démarrage - THÈME SOMBRE."""
-        logo_src = self._get_logo_base64()
+        logo_src = get_logo_base64()
         logo_img = f"<img src='{logo_src}' width='48' height='48' style='vertical-align: middle; margin-right: 10px;'/>" if logo_src else "🤖"
 
         empty_html = f"""
