@@ -35,14 +35,17 @@ class DatabaseManager:
     def _initialize_database(self):
         """Initialise la base de données et crée les tables."""
         try:
-            self.connection = sqlite3.connect(self.db_path)
+            # check_same_thread=False permet l'accès depuis plusieurs threads (API worker)
+            self.connection = sqlite3.connect(self.db_path, check_same_thread=False)
             self.connection.row_factory = sqlite3.Row
 
             cursor = self.connection.cursor()
 
             # Activer les clés étrangères pour que ON DELETE CASCADE fonctionne
             cursor.execute("PRAGMA foreign_keys = ON")
-            
+            # Activer le mode WAL pour de meilleures performances en lecture concurrente
+            cursor.execute("PRAGMA journal_mode = WAL")
+
             # Table conversations
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS conversations (
@@ -51,7 +54,7 @@ class DatabaseManager:
                     created_at TEXT NOT NULL
                 )
             """)
-            
+
             # Table messages
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
@@ -60,23 +63,74 @@ class DatabaseManager:
                     role TEXT NOT NULL,
                     content TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
+                    tokens_estimated INTEGER DEFAULT 0,
                     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
                         ON DELETE CASCADE
                 )
             """)
-            
+
+            # Table tags
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tags (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    color TEXT DEFAULT '#4CAF50'
+                )
+            """)
+
+            # Table de liaison conversations <-> tags
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_tags (
+                    conversation_id INTEGER NOT NULL,
+                    tag_id INTEGER NOT NULL,
+                    PRIMARY KEY (conversation_id, tag_id),
+                    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+                )
+            """)
+
             # Index pour performances
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_messages_conversation 
+                CREATE INDEX IF NOT EXISTS idx_messages_conversation
                 ON messages(conversation_id)
             """)
-            
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_messages_timestamp
+                ON messages(timestamp)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversations_created_at
+                ON conversations(created_at)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversation_tags_conv
+                ON conversation_tags(conversation_id)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag
+                ON conversation_tags(tag_id)
+            """)
+
+            # Migration: ajouter la colonne tokens_estimated si elle n'existe pas
+            self._migrate_add_column(cursor, 'messages', 'tokens_estimated', 'INTEGER DEFAULT 0')
+
             self.connection.commit()
             self.logger.debug(f"[DATABASE] INIT: Base de données '{self.db_path}' initialisée")
-        
+
         except Exception as e:
             self.logger.error(f"[DATABASE] Initialisation base de données", exc_info=True)
             raise
+
+    def _migrate_add_column(self, cursor, table: str, column: str, column_type: str):
+        """Ajoute une colonne si elle n'existe pas (migration)."""
+        try:
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [row[1] for row in cursor.fetchall()]
+            if column not in columns:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+                self.logger.debug(f"[DATABASE] Migration: colonne '{column}' ajoutée à '{table}'")
+        except Exception as e:
+            self.logger.warning(f"[DATABASE] Migration colonne {column}: {e}")
     
     # === CONVERSATIONS ===
     
@@ -212,37 +266,39 @@ class DatabaseManager:
         self,
         conversation_id: int,
         role: str,
-        content: str
+        content: str,
+        tokens_estimated: int = 0
     ) -> int:
         """
         Ajoute un message à une conversation.
-        
+
         Args:
             conversation_id: ID de la conversation
             role: 'user' ou 'assistant' ou 'system'
             content: Contenu du message
-        
+            tokens_estimated: Estimation du nombre de tokens
+
         Returns:
             ID du message créé
         """
         try:
             cursor = self.connection.cursor()
             timestamp = datetime.now().isoformat()
-            
+
             cursor.execute(
                 """
-                INSERT INTO messages (conversation_id, role, content, timestamp)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO messages (conversation_id, role, content, timestamp, tokens_estimated)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (conversation_id, role, content, timestamp)
+                (conversation_id, role, content, timestamp, tokens_estimated)
             )
             self.connection.commit()
-            
+
             msg_id = cursor.lastrowid
             self.logger.debug(f"[DATABASE] INSERT: Message ID {msg_id} ({role}) dans conversation {conversation_id}")
-            
+
             return msg_id
-        
+
         except Exception as e:
             self.logger.error(f"[DATABASE] Ajout message", exc_info=True)
             raise
@@ -409,6 +465,121 @@ class DatabaseManager:
             self.logger.error(f"[DATABASE] Recherche conversations", exc_info=True)
             return []
     
+    # === TAGS ===
+
+    def create_tag(self, name: str, color: str = '#4CAF50') -> int:
+        """Crée un nouveau tag. Retourne l'ID du tag."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("INSERT INTO tags (name, color) VALUES (?, ?)", (name, color))
+            self.connection.commit()
+            tag_id = cursor.lastrowid
+            self.logger.debug(f"[DATABASE] CREATE TAG: '{name}' (ID {tag_id})")
+            return tag_id
+        except sqlite3.IntegrityError:
+            # Tag existe déjà, retourner son ID
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT id FROM tags WHERE name = ?", (name,))
+            row = cursor.fetchone()
+            return row['id'] if row else -1
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Création tag", exc_info=True)
+            return -1
+
+    def get_all_tags(self) -> List[Dict]:
+        """Retourne tous les tags."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT id, name, color FROM tags ORDER BY name ASC")
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Récupération tags", exc_info=True)
+            return []
+
+    def delete_tag(self, tag_id: int) -> bool:
+        """Supprime un tag."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
+            self.connection.commit()
+            return True
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Suppression tag", exc_info=True)
+            return False
+
+    def add_tag_to_conversation(self, conversation_id: int, tag_id: int) -> bool:
+        """Associe un tag à une conversation."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "INSERT OR IGNORE INTO conversation_tags (conversation_id, tag_id) VALUES (?, ?)",
+                (conversation_id, tag_id)
+            )
+            self.connection.commit()
+            return True
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Ajout tag à conversation", exc_info=True)
+            return False
+
+    def remove_tag_from_conversation(self, conversation_id: int, tag_id: int) -> bool:
+        """Retire un tag d'une conversation."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "DELETE FROM conversation_tags WHERE conversation_id = ? AND tag_id = ?",
+                (conversation_id, tag_id)
+            )
+            self.connection.commit()
+            return True
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Retrait tag", exc_info=True)
+            return False
+
+    def get_conversation_tags(self, conversation_id: int) -> List[Dict]:
+        """Retourne les tags d'une conversation."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT t.id, t.name, t.color
+                FROM tags t
+                JOIN conversation_tags ct ON t.id = ct.tag_id
+                WHERE ct.conversation_id = ?
+                ORDER BY t.name ASC
+            """, (conversation_id,))
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Récupération tags conversation", exc_info=True)
+            return []
+
+    def get_conversations_by_tag(self, tag_id: int) -> List[Dict]:
+        """Retourne les conversations associées à un tag."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT c.id, c.title, c.created_at
+                FROM conversations c
+                JOIN conversation_tags ct ON c.id = ct.conversation_id
+                WHERE ct.tag_id = ?
+                ORDER BY c.created_at DESC
+            """, (tag_id,))
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Conversations par tag", exc_info=True)
+            return []
+
+    def get_conversation_token_total(self, conversation_id: int) -> int:
+        """Retourne le total de tokens estimés pour une conversation."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "SELECT COALESCE(SUM(tokens_estimated), 0) FROM messages WHERE conversation_id = ?",
+                (conversation_id,)
+            )
+            return cursor.fetchone()[0]
+        except Exception as e:
+            self.logger.error(f"[DATABASE] Total tokens conversation", exc_info=True)
+            return 0
+
     def vacuum(self):
         """Optimise la base de données (récupère l'espace)."""
         try:

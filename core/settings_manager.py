@@ -46,6 +46,9 @@ class SettingsManager:
         'behavior/auto_scroll': True,
         'behavior/confirm_delete': True,
         'behavior/max_displayed_messages': 100,  # Limite pour éviter les ralentissements
+
+        # Draft (brouillon du champ de saisie)
+        'draft/content': '',  # Texte du brouillon sauvegardé
     }
     
     def __init__(self, settings_file: Optional[str] = None):
@@ -246,8 +249,18 @@ class SettingsManager:
             self._set('ui/chat_splitter_top', sizes[0])
             self._set('ui/chat_splitter_bottom', sizes[1])
     
+    # === DRAFT SETTINGS ===
+
+    def get_draft(self) -> str:
+        """Retourne le brouillon sauvegardé."""
+        return self._get('draft/content', str)
+
+    def set_draft(self, content: str):
+        """Sauvegarde le brouillon du champ de saisie."""
+        self._set('draft/content', content)
+
     # === BEHAVIOR SETTINGS ===
-    
+
     def get_auto_scroll(self) -> bool:
         """Retourne l'état de l'auto-scroll."""
         return self._get('behavior/auto_scroll', bool)
