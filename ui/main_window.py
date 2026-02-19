@@ -92,19 +92,36 @@ class MainWindow(QMainWindow):
         self.sidebar.search_requested.connect(self._on_search_in_messages)
         splitter.addWidget(self.sidebar)
         
-        # Zone centrale (Chat + Input)
+        # Zone centrale (Chat + Input) avec splitter vertical redimensionnable
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
         center_layout.setContentsMargins(5, 5, 5, 5)
 
+        # Splitter vertical entre chat et input
+        self.chat_input_splitter = QSplitter(Qt.Orientation.Vertical)
+
         # Récupérer le thème Highlight.js depuis les settings
         hljs_theme = self.controller.settings_manager.get_hljs_theme()
         self.chat_widget = ChatWidget(hljs_theme=hljs_theme)
-        center_layout.addWidget(self.chat_widget, stretch=1)
-        
+        self.chat_input_splitter.addWidget(self.chat_widget)
+
         self.input_widget = InputWidget()
-        center_layout.addWidget(self.input_widget)
-        
+        self.chat_input_splitter.addWidget(self.input_widget)
+
+        # Le chat prend la majorité de l'espace, l'input reste plus petit
+        self.chat_input_splitter.setStretchFactor(0, 1)  # Chat extensible
+        self.chat_input_splitter.setStretchFactor(1, 0)  # Input taille minimale
+
+        # Restaurer les tailles sauvegardées par l'utilisateur
+        saved_sizes = self.controller.settings_manager.get_chat_splitter_sizes()
+        if saved_sizes:
+            self.chat_input_splitter.setSizes(saved_sizes)
+
+        # Sauvegarder automatiquement quand l'utilisateur déplace le splitter
+        self.chat_input_splitter.splitterMoved.connect(self._on_chat_splitter_moved)
+
+        center_layout.addWidget(self.chat_input_splitter)
+
         splitter.addWidget(center_widget)
         
         # Tailles du splitter
@@ -169,6 +186,11 @@ class MainWindow(QMainWindow):
         # Ctrl+F pour focus sur la recherche
         search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         search_shortcut.activated.connect(self._on_focus_search)
+
+    def _on_chat_splitter_moved(self, pos: int, index: int):
+        """Sauvegarde la position du splitter chat/input quand l'utilisateur le déplace."""
+        sizes = self.chat_input_splitter.sizes()
+        self.controller.settings_manager.set_chat_splitter_sizes(sizes)
 
     def _on_cancel_streaming(self):
         """Annule le streaming en cours si actif."""

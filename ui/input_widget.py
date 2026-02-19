@@ -87,11 +87,12 @@ class InputWidget(QWidget):
         
         # TextEdit (prend tout l'espace disponible)
         self.text_edit = CustomTextEdit()
+        self.text_edit.setAcceptRichText(False)  # Désactiver le formatage riche (couleurs, etc.)
         self.text_edit.setPlaceholderText(
             "Type your message here...\n"
             "Enter = Send | Shift+Enter = New line"
         )
-        self.text_edit.setFixedHeight(80)
+        self.text_edit.setMinimumHeight(60)
         self.text_edit.textChanged.connect(self._on_text_changed)
         self.text_edit.enter_pressed.connect(self._on_send_clicked)
         self.text_edit.setStyleSheet("""
@@ -114,7 +115,8 @@ class InputWidget(QWidget):
         self.send_button.setToolTip("Send message (Enter)")
         self.send_button.clicked.connect(self._on_send_clicked)
         self.send_button.setEnabled(False)
-        self.send_button.setFixedSize(100, 80)
+        self.send_button.setFixedWidth(100)
+        self.send_button.setMinimumHeight(60)
         self.send_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;

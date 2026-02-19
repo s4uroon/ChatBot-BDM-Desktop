@@ -146,13 +146,22 @@ def setup_application_style():
     }
     
     /* === SPLITTER === */
-    QSplitter::handle {
+    QSplitter::handle:horizontal {
         background-color: #3d3d3d;
         width: 2px;
     }
-    
-    QSplitter::handle:hover {
-        background-color: #4d4d4d;
+
+    QSplitter::handle:horizontal:hover {
+        background-color: #4CAF50;
+    }
+
+    QSplitter::handle:vertical {
+        background-color: #3d3d3d;
+        height: 5px;
+    }
+
+    QSplitter::handle:vertical:hover {
+        background-color: #4CAF50;
     }
     
     /* === GROUPBOX === */
