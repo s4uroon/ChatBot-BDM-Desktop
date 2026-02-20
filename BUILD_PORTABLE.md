@@ -168,7 +168,7 @@ Linux/Mac: ~/.ChatBot_BDM_Desktop/
 2. **Nommer le fichier ZIP**
 
    ```
-   ChatBot-BDM-Desktop-v1.0.0-Portable-Windows.zip
+   ChatBot-BDM-Desktop-v2.1.0-Portable-Windows.zip
    ```
 
 3. **Distribuer le fichier**

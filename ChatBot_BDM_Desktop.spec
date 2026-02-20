@@ -38,6 +38,8 @@ a = Analysis(
         # Modules de l'application
         'core',
         'core.api_client',
+        'core.constants',
+        'core.conversation_manager',
         'core.database',
         'core.export_manager',
         'core.init_files',
@@ -45,6 +47,7 @@ a = Analysis(
         'core.main_controller',
         'core.paths',
         'core.settings_manager',
+        'core.tag_manager',
         'ui',
         'ui.chat_widget',
         'ui.export_dialog',
@@ -56,8 +59,10 @@ a = Analysis(
         'utils.code_parser',
         'utils.css_generator',
         'utils.html_generator',
+        'utils.logo_utils',
         'workers',
         'workers.api_worker',
+        'workers.title_worker',
         # Autres dépendances
         'openai',
         'httpx',
