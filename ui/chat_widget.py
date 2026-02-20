@@ -6,12 +6,24 @@ Widget d'affichage du chat avec QWebEngineView
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenu
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import QTimer, pyqtSignal, Qt
-from PyQt6.QtGui import QContextMenuEvent
+from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt, QUrl
+from PyQt6.QtGui import QContextMenuEvent, QDesktopServices
 from typing import List, Dict, Optional
 from utils.html_generator import HTMLGenerator
 from utils.logo_utils import get_logo_base64
 from core.logger import get_logger
+
+
+class ExternalLinkPage(QWebEnginePage):
+    """Page personnalisée qui ouvre les liens externes dans le navigateur système."""
+
+    def acceptNavigationRequest(self, url: QUrl, nav_type, is_main_frame: bool) -> bool:
+        if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
+            if url.scheme() in ('http', 'https', 'mailto'):
+                QDesktopServices.openUrl(url)
+                return False
+        return True
 
 
 class CustomWebEngineView(QWebEngineView):
@@ -87,6 +99,7 @@ class ChatWidget(QWidget):
         
         # WebEngine View personnalisée avec menu contextuel
         self.web_view = CustomWebEngineView()
+        self.web_view.setPage(ExternalLinkPage(self.web_view))
         self.web_view.export_requested.connect(self.export_current_session.emit)
         self.web_view.setStyleSheet("""
             QWebEngineView {
