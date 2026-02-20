@@ -274,38 +274,83 @@ class HTMLGenerator:
 
         for block in parsed:
             if block['type'] == 'text':
-                # Texte normal - convertir markdown basique en HTML
+                # Texte normal - convertir markdown en HTML
                 text = block['content']
+
+                # ── PHASE 1 : Constructions block-level (multi-ligne) ──
 
                 # Tableaux markdown (avant les autres transformations)
                 text = self._parse_markdown_tables(text)
 
-                # Titres
+                # Règles horizontales (avant titres car --- pourrait conflictucter)
+                text = re.sub(
+                    r'^[ ]{0,3}(?:[-]{3,}|[*]{3,}|[_]{3,})[ ]*$',
+                    r'<hr class="markdown-hr">',
+                    text,
+                    flags=re.MULTILINE
+                )
+
+                # Titres h6→h1 (du plus spécifique au moins spécifique)
+                text = re.sub(r'^###### (.+)$', r'<h6>\1</h6>', text, flags=re.MULTILINE)
+                text = re.sub(r'^##### (.+)$', r'<h5>\1</h5>', text, flags=re.MULTILINE)
+                text = re.sub(r'^#### (.+)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
                 text = re.sub(r'^### (.+)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
                 text = re.sub(r'^## (.+)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)
                 text = re.sub(r'^# (.+)$', r'<h1>\1</h1>', text, flags=re.MULTILINE)
 
+                # Blockquotes (avant transformations inline)
+                text = self._parse_blockquotes(text)
+
+                # Listes : bullet, ordered, task, nested (remplace l'ancien regex bullet)
+                text = self._parse_lists(text)
+
+                # ── PHASE 2 : Constructions inline ──
+
+                # Gras+Italique combiné (avant gras et italique séparément)
+                text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<strong><em>\1</em></strong>', text)
+                text = re.sub(r'___(.+?)___', r'<strong><em>\1</em></strong>', text)
+
                 # Gras
                 text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+
+                # Barré
+                text = re.sub(r'~~(.+?)~~', r'<del>\1</del>', text)
 
                 # Italique
                 text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
 
+                # Images (avant liens car ![alt](url) pourrait matcher [alt](url))
+                text = re.sub(
+                    r'!\[([^\]]*)\]\(([^)]+)\)',
+                    r'<img src="\2" alt="\1" class="markdown-img">',
+                    text
+                )
+
+                # Liens
+                text = re.sub(
+                    r'\[([^\]]+)\]\(([^)]+)\)',
+                    r'<a href="\2" target="_blank" rel="noopener noreferrer" class="markdown-link">\1</a>',
+                    text
+                )
+
                 # Code inline
                 text = re.sub(r'`([^`]+)`', r'<code class="inline-code">\1</code>', text)
 
-                # Listes à puces - grouper les éléments consécutifs
-                def replace_list_block(match):
-                    items = match.group(0)
-                    # Convertir chaque ligne "- item" en "<li>item</li>"
-                    list_items = re.sub(r'^- (.+)$', r'<li>\1</li>', items, flags=re.MULTILINE)
-                    return f'<ul>{list_items}</ul>'
+                # ── PHASE 3 : Sauts de ligne ──
 
-                # Trouver les blocs de listes consécutifs
-                text = re.sub(r'(^- .+$(\n^- .+$)*)', replace_list_block, text, flags=re.MULTILINE)
-
-                # Sauts de ligne (mais pas dans les listes ni les tableaux)
-                text = re.sub(r'\n(?!</li>)(?!<li>)(?!</ul>)(?!<ul>)(?!</table>)(?!<t[hdr])(?!</t[hdr])', '<br>', text)
+                # \n → <br> sauf avant les balises HTML de blocs
+                text = re.sub(
+                    r'\n'
+                    r'(?!</li>)(?!<li)'
+                    r'(?!</ul>)(?!<ul)'
+                    r'(?!</ol>)(?!<ol)'
+                    r'(?!</table>)(?!<t[hdr])(?!</t[hdr])'
+                    r'(?!<hr)(?!</hr)'
+                    r'(?!</blockquote>)(?!<blockquote)'
+                    r'(?!</h[1-6]>)(?!<h[1-6][ >])',
+                    '<br>',
+                    text
+                )
 
                 html_parts.append(f'<div class="text-block">{text}</div>')
 
@@ -401,7 +446,165 @@ class HTMLGenerator:
         if line.endswith('|'):
             line = line[:-1]
         return line.split('|')
-    
+
+    def _parse_blockquotes(self, text: str) -> str:
+        """
+        Parse les blockquotes markdown, y compris imbriquées.
+
+        Gère : > texte, >> imbriqué, >>> triple imbriqué
+        """
+        lines = text.split('\n')
+        result = []
+        current_depth = 0
+
+        for line in lines:
+            stripped = line.lstrip()
+            depth = 0
+            pos = 0
+            while pos < len(stripped) and stripped[pos] == '>':
+                depth += 1
+                pos += 1
+                if pos < len(stripped) and stripped[pos] == ' ':
+                    pos += 1
+
+            if depth > 0:
+                content = stripped[pos:]
+                while current_depth < depth:
+                    result.append('<blockquote class="markdown-blockquote">')
+                    current_depth += 1
+                while current_depth > depth:
+                    result.append('</blockquote>')
+                    current_depth -= 1
+                result.append(content)
+            else:
+                while current_depth > 0:
+                    result.append('</blockquote>')
+                    current_depth -= 1
+                result.append(line)
+
+        while current_depth > 0:
+            result.append('</blockquote>')
+            current_depth -= 1
+
+        return '\n'.join(result)
+
+    def _parse_lists(self, text: str) -> str:
+        """
+        Parse les listes markdown : bullet, ordered, task, nested.
+
+        Gère :
+            - item / * item   (non ordonnée)
+            1. item / 2) item (ordonnée)
+            - [ ] unchecked   (tâche)
+            - [x] checked     (tâche)
+            Indentation pour imbrication (2+ espaces par niveau)
+        """
+        lines = text.split('\n')
+        result = []
+        i = 0
+
+        while i < len(lines):
+            line = lines[i]
+            list_match = re.match(
+                r'^(\s*)(?:([-*])\s+|(\d+)[.)]\s+)',
+                line
+            )
+
+            if list_match:
+                list_lines = []
+                while i < len(lines):
+                    lm = re.match(
+                        r'^(\s*)(?:([-*])\s+|(\d+)[.)]\s+)',
+                        lines[i]
+                    )
+                    if lm:
+                        list_lines.append(lines[i])
+                        i += 1
+                    elif lines[i].strip() == '':
+                        j = i + 1
+                        while j < len(lines) and lines[j].strip() == '':
+                            j += 1
+                        if j < len(lines) and re.match(
+                            r'^(\s*)(?:([-*])\s+|(\d+)[.)]\s+)', lines[j]
+                        ):
+                            list_lines.append('')
+                            i += 1
+                        else:
+                            break
+                    else:
+                        break
+                result.append(self._build_list_html(list_lines))
+            else:
+                result.append(line)
+                i += 1
+
+        return '\n'.join(result)
+
+    def _build_list_html(self, lines: list) -> str:
+        """
+        Construit le HTML de listes imbriquées à partir de lignes markdown.
+
+        Utilise une pile pour gérer les niveaux d'imbrication et types de listes.
+        """
+        html_parts = []
+        stack = []  # [(indent_level, list_type)]
+
+        for line in lines:
+            if line.strip() == '':
+                continue
+
+            match = re.match(
+                r'^(\s*)'
+                r'(?:([-*])\s+|(\d+)[.)]\s+)'
+                r'(.*)',
+                line
+            )
+            if not match:
+                continue
+
+            indent = len(match.group(1))
+            is_bullet = match.group(2) is not None
+            content = match.group(4)
+            list_type = 'ul' if is_bullet else 'ol'
+
+            level = indent // 2
+
+            # Checkbox / task list
+            task_match = re.match(r'^\[( |x|X)\]\s+(.*)', content)
+            if task_match:
+                checked = task_match.group(1).lower() == 'x'
+                content = task_match.group(2)
+                checkbox = (
+                    '<input type="checkbox" checked disabled class="task-checkbox"> '
+                    if checked else
+                    '<input type="checkbox" disabled class="task-checkbox"> '
+                )
+                content = checkbox + content
+
+            # Fermer les niveaux excédentaires
+            while len(stack) > level + 1:
+                old_type = stack.pop()[1]
+                html_parts.append(f'</{old_type}>')
+
+            if len(stack) == level + 1:
+                if stack[-1][1] != list_type:
+                    old_type = stack.pop()[1]
+                    html_parts.append(f'</{old_type}>')
+                    html_parts.append(f'<{list_type}>')
+                    stack.append((level, list_type))
+
+            while len(stack) < level + 1:
+                html_parts.append(f'<{list_type}>')
+                stack.append((level, list_type))
+
+            html_parts.append(f'<li>{content}</li>')
+
+        while stack:
+            old_type = stack.pop()[1]
+            html_parts.append(f'</{old_type}>')
+
+        return '\n'.join(html_parts)
+
     def _generate_code_block(self, code: str, language: str) -> str:
         """
         Génère un bloc de code avec coloration et bouton copier.
@@ -824,6 +1027,120 @@ class HTMLGenerator:
 
             .markdown-table tbody tr:last-child td {
                 border-bottom: none;
+            }
+
+            /* === HEADINGS h4, h5, h6 === */
+            .text-block h4 {
+                color: #66BB6A;
+                font-size: 15px;
+                margin: 12px 0 5px 0;
+            }
+
+            .text-block h5 {
+                color: #81C784;
+                font-size: 14px;
+                margin: 10px 0 4px 0;
+            }
+
+            .text-block h6 {
+                color: #A5D6A7;
+                font-size: 13px;
+                margin: 8px 0 3px 0;
+            }
+
+            /* === BLOCKQUOTES === */
+            .markdown-blockquote {
+                border-left: 4px solid #4CAF50;
+                margin: 10px 0;
+                padding: 8px 16px;
+                background: rgba(76, 175, 80, 0.08);
+                color: #b0b0b0;
+                font-style: italic;
+                border-radius: 0 4px 4px 0;
+            }
+
+            .markdown-blockquote .markdown-blockquote {
+                border-left-color: #66BB6A;
+                background: rgba(102, 187, 106, 0.06);
+                margin: 6px 0;
+            }
+
+            .markdown-blockquote .markdown-blockquote .markdown-blockquote {
+                border-left-color: #81C784;
+                background: rgba(129, 199, 132, 0.04);
+            }
+
+            /* === HORIZONTAL RULES === */
+            .markdown-hr {
+                border: none;
+                height: 1px;
+                background: linear-gradient(to right, transparent, #4CAF50, transparent);
+                margin: 20px 0;
+            }
+
+            /* === STRIKETHROUGH === */
+            .text-block del {
+                color: #888888;
+                text-decoration: line-through;
+            }
+
+            /* === LINKS === */
+            .markdown-link {
+                color: #4CAF50;
+                text-decoration: none;
+                border-bottom: 1px dashed #4CAF50;
+                transition: color 0.2s, border-bottom-color 0.2s;
+            }
+
+            .markdown-link:hover {
+                color: #66BB6A;
+                border-bottom-color: #66BB6A;
+            }
+
+            /* === IMAGES === */
+            .markdown-img {
+                max-width: 100%;
+                height: auto;
+                border-radius: 8px;
+                margin: 10px 0;
+                border: 1px solid #3d3d3d;
+            }
+
+            /* === ORDERED LISTS === */
+            .text-block ol {
+                margin: 10px 0;
+                padding-left: 25px;
+            }
+
+            .text-block ol li {
+                margin: 5px 0;
+                color: #d0d0d0;
+            }
+
+            .text-block ol li::marker {
+                color: #4CAF50;
+                font-weight: bold;
+            }
+
+            .text-block ul li::marker {
+                color: #4CAF50;
+            }
+
+            /* === NESTED LISTS === */
+            .text-block ul ul,
+            .text-block ol ol,
+            .text-block ul ol,
+            .text-block ol ul {
+                margin: 4px 0;
+                padding-left: 20px;
+            }
+
+            /* === TASK/CHECKBOX LISTS === */
+            .task-checkbox {
+                margin-right: 6px;
+                accent-color: #4CAF50;
+                vertical-align: middle;
+                cursor: default;
             }
         """
     
