@@ -30,6 +30,8 @@ Le dossier `assets/` doit contenir :
 ```
 assets/
 ├── ChatBot_BDM_Desktop.ico    ✅ REQUIS
+├── ChatBot_BDM_Desktop_256.png ✅ Logo application
+├── style.qss                  ✅ Stylesheet Qt (thème sombre)
 ├── highlightjs/               ✅ Déjà présent
 │   ├── highlight.min.js
 │   ├── languages/

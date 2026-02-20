@@ -112,7 +112,7 @@ echo   2. Si souhaité, supprimez aussi C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\
 echo      pour effacer toutes vos conversations et paramètres
 echo.
 echo ============================================================================
-echo  Version : 1.0.0
+echo  Version : 2.1.0
 echo  Date : %date%
 echo ============================================================================
 ) > "dist\ChatBot BDM Desktop\README.txt"
