@@ -41,6 +41,8 @@ class SettingsManager:
         'ui/theme': 'light',
         'ui/chat_splitter_top': 0,       # Taille du panneau chat (0 = défaut automatique)
         'ui/chat_splitter_bottom': 0,    # Taille du panneau input (0 = défaut automatique)
+        'ui/sidebar_splitter_left': 0,   # Taille sidebar (0 = défaut automatique)
+        'ui/sidebar_splitter_right': 0,  # Taille zone centrale (0 = défaut automatique)
         
         # Behavior
         'behavior/auto_scroll': True,
@@ -248,7 +250,21 @@ class SettingsManager:
         if len(sizes) == 2:
             self._set('ui/chat_splitter_top', sizes[0])
             self._set('ui/chat_splitter_bottom', sizes[1])
-    
+
+    def get_sidebar_splitter_sizes(self) -> list[int]:
+        """Retourne les tailles du splitter sidebar/centre [left, right]. Retourne [] si non défini."""
+        left = self._get('ui/sidebar_splitter_left', int)
+        right = self._get('ui/sidebar_splitter_right', int)
+        if left > 0 and right > 0:
+            return [left, right]
+        return []
+
+    def set_sidebar_splitter_sizes(self, sizes: list[int]):
+        """Sauvegarde les tailles du splitter sidebar/centre."""
+        if len(sizes) == 2:
+            self._set('ui/sidebar_splitter_left', sizes[0])
+            self._set('ui/sidebar_splitter_right', sizes[1])
+
     # === DRAFT SETTINGS ===
 
     def get_draft(self) -> str:

@@ -86,14 +86,14 @@ class MainWindow(QMainWindow):
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Splitter horizontal
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        
+        # Splitter horizontal (sidebar | zone centrale)
+        self.sidebar_splitter = QSplitter(Qt.Orientation.Horizontal)
+
         # Sidebar
         self.sidebar = SidebarWidget()
         self.sidebar.search_requested.connect(self._on_search_in_messages)
-        splitter.addWidget(self.sidebar)
-        
+        self.sidebar_splitter.addWidget(self.sidebar)
+
         # Zone centrale (Chat + Input) avec splitter vertical redimensionnable
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
@@ -124,14 +124,23 @@ class MainWindow(QMainWindow):
 
         center_layout.addWidget(self.chat_input_splitter)
 
-        splitter.addWidget(center_widget)
-        
-        # Tailles du splitter
-        splitter.setStretchFactor(0, 0)  # Sidebar fixe
-        splitter.setStretchFactor(1, 1)  # Centre extensible
-        splitter.setSizes([190, 1010])
-        
-        main_layout.addWidget(splitter)
+        self.sidebar_splitter.addWidget(center_widget)
+
+        # Tailles du splitter sidebar
+        self.sidebar_splitter.setStretchFactor(0, 0)  # Sidebar fixe
+        self.sidebar_splitter.setStretchFactor(1, 1)  # Centre extensible
+
+        # Restaurer la position sauvegardée ou utiliser les valeurs par défaut
+        saved_sidebar_sizes = self.controller.settings_manager.get_sidebar_splitter_sizes()
+        if saved_sidebar_sizes:
+            self.sidebar_splitter.setSizes(saved_sidebar_sizes)
+        else:
+            self.sidebar_splitter.setSizes([190, 1010])
+
+        # Sauvegarder automatiquement quand l'utilisateur déplace le splitter sidebar
+        self.sidebar_splitter.splitterMoved.connect(self._on_sidebar_splitter_moved)
+
+        main_layout.addWidget(self.sidebar_splitter)
         
         # Barre de statut
         self.status_bar = QStatusBar()
@@ -271,6 +280,11 @@ class MainWindow(QMainWindow):
         """Sauvegarde la position du splitter chat/input quand l'utilisateur le déplace."""
         sizes = self.chat_input_splitter.sizes()
         self.controller.settings_manager.set_chat_splitter_sizes(sizes)
+
+    def _on_sidebar_splitter_moved(self, pos: int, index: int):
+        """Sauvegarde la position du splitter sidebar/centre quand l'utilisateur le déplace."""
+        sizes = self.sidebar_splitter.sizes()
+        self.controller.settings_manager.set_sidebar_splitter_sizes(sizes)
 
     def _on_cancel_streaming(self):
         """Annule le streaming en cours si actif."""
