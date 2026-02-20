@@ -260,34 +260,37 @@ class HTMLGenerator:
     def _parse_content(self, content: str) -> str:
         """
         Parse le contenu pour détecter et formater le code et le markdown.
-        
+
         Args:
             content: Contenu brut du message
-        
+
         Returns:
             HTML formaté
         """
         # Détection des blocs de code
         parsed = self.code_parser.parse_content(content)
-        
+
         html_parts = []
-        
+
         for block in parsed:
             if block['type'] == 'text':
                 # Texte normal - convertir markdown basique en HTML
                 text = block['content']
-                
+
+                # Tableaux markdown (avant les autres transformations)
+                text = self._parse_markdown_tables(text)
+
                 # Titres
                 text = re.sub(r'^### (.+)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
                 text = re.sub(r'^## (.+)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)
                 text = re.sub(r'^# (.+)$', r'<h1>\1</h1>', text, flags=re.MULTILINE)
-                
+
                 # Gras
                 text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-                
+
                 # Italique
                 text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
-                
+
                 # Code inline
                 text = re.sub(r'`([^`]+)`', r'<code class="inline-code">\1</code>', text)
 
@@ -301,24 +304,103 @@ class HTMLGenerator:
                 # Trouver les blocs de listes consécutifs
                 text = re.sub(r'(^- .+$(\n^- .+$)*)', replace_list_block, text, flags=re.MULTILINE)
 
-                # Sauts de ligne (mais pas dans les listes)
-                text = re.sub(r'\n(?!</li>)(?!<li>)(?!</ul>)(?!<ul>)', '<br>', text)
-                
+                # Sauts de ligne (mais pas dans les listes ni les tableaux)
+                text = re.sub(r'\n(?!</li>)(?!<li>)(?!</ul>)(?!<ul>)(?!</table>)(?!<t[hdr])(?!</t[hdr])', '<br>', text)
+
                 html_parts.append(f'<div class="text-block">{text}</div>')
-            
+
             elif block['type'] == 'code':
                 # Bloc de code avec syntaxe
                 language = block['language']
                 code = block['content']
-                
+
                 # Logging
                 line_count = code.count('\n') + 1
                 self.logger.debug(f"[PARSER] Bloc de code détecté: {language} ({line_count} lignes)")
-                
+
                 # Génération du bloc avec bouton copier
                 html_parts.append(self._generate_code_block(code, language))
-        
+
         return "\n".join(html_parts)
+
+    def _parse_markdown_tables(self, text: str) -> str:
+        """
+        Détecte et convertit les tableaux markdown en HTML.
+
+        Gère le format :
+            | Header 1 | Header 2 |
+            |----------|----------|
+            | Cell 1   | Cell 2   |
+
+        Supporte l'alignement :
+            :--- (gauche), :---: (centre), ---: (droite)
+        """
+        lines = text.split('\n')
+        result = []
+        i = 0
+
+        while i < len(lines):
+            # Détecter le début d'un tableau : ligne avec pipes + ligne séparateur
+            if (i + 1 < len(lines)
+                    and '|' in lines[i]
+                    and re.match(r'^\s*\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|?\s*$', lines[i + 1])):
+
+                # Extraire les en-têtes
+                header_cells = self._parse_table_row(lines[i])
+                separator_cells = self._parse_table_row(lines[i + 1])
+
+                # Déterminer l'alignement depuis la ligne séparateur
+                alignments = []
+                for sep in separator_cells:
+                    sep = sep.strip()
+                    if sep.startswith(':') and sep.endswith(':'):
+                        alignments.append('center')
+                    elif sep.endswith(':'):
+                        alignments.append('right')
+                    else:
+                        alignments.append('left')
+
+                # Construire le HTML du tableau
+                table_html = '<table class="markdown-table">\n<thead>\n<tr>\n'
+                for col_idx, cell in enumerate(header_cells):
+                    align = alignments[col_idx] if col_idx < len(alignments) else 'left'
+                    table_html += f'<th style="text-align:{align}">{cell.strip()}</th>\n'
+                table_html += '</tr>\n</thead>\n<tbody>\n'
+
+                # Avancer après le séparateur
+                i += 2
+
+                # Lire les lignes de données
+                while i < len(lines) and '|' in lines[i]:
+                    row_cells = self._parse_table_row(lines[i])
+                    table_html += '<tr>\n'
+                    for col_idx, cell in enumerate(row_cells):
+                        align = alignments[col_idx] if col_idx < len(alignments) else 'left'
+                        table_html += f'<td style="text-align:{align}">{cell.strip()}</td>\n'
+                    # Compléter les cellules manquantes
+                    for col_idx in range(len(row_cells), len(header_cells)):
+                        table_html += '<td></td>\n'
+                    table_html += '</tr>\n'
+                    i += 1
+
+                table_html += '</tbody>\n</table>'
+                result.append(table_html)
+            else:
+                result.append(lines[i])
+                i += 1
+
+        return '\n'.join(result)
+
+    @staticmethod
+    def _parse_table_row(line: str) -> list:
+        """Extrait les cellules d'une ligne de tableau markdown."""
+        line = line.strip()
+        # Retirer les pipes de début et fin
+        if line.startswith('|'):
+            line = line[1:]
+        if line.endswith('|'):
+            line = line[:-1]
+        return line.split('|')
     
     def _generate_code_block(self, code: str, language: str) -> str:
         """
@@ -687,6 +769,61 @@ class HTMLGenerator:
                     transform: scale(1);
                     opacity: 1;
                 }
+            }
+
+            /* === TABLEAUX MARKDOWN === */
+            .markdown-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 12px 0;
+                font-size: 14px;
+                border-radius: 8px;
+                overflow: hidden;
+                border: 1px solid #3d3d3d;
+            }
+
+            .markdown-table thead {
+                background: #2d2d2d;
+            }
+
+            .markdown-table th {
+                padding: 10px 14px;
+                font-weight: bold;
+                color: #4CAF50;
+                border-bottom: 2px solid #4CAF50;
+                border-right: 1px solid #3d3d3d;
+                white-space: nowrap;
+            }
+
+            .markdown-table th:last-child {
+                border-right: none;
+            }
+
+            .markdown-table td {
+                padding: 8px 14px;
+                border-bottom: 1px solid #333333;
+                border-right: 1px solid #333333;
+                color: #d0d0d0;
+            }
+
+            .markdown-table td:last-child {
+                border-right: none;
+            }
+
+            .markdown-table tbody tr:nth-child(even) {
+                background: #1e1e1e;
+            }
+
+            .markdown-table tbody tr:nth-child(odd) {
+                background: #252525;
+            }
+
+            .markdown-table tbody tr:hover {
+                background: #2a3a2a;
+            }
+
+            .markdown-table tbody tr:last-child td {
+                border-bottom: none;
             }
         """
     
