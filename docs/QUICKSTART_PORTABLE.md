@@ -8,16 +8,16 @@ Guide ultra-rapide pour créer et distribuer la version portable de ChatBot BDM 
 
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-build.txt
+pip install -r build_scripts/requirements-build.txt
 ```
 
 ### 2️⃣ Compiler
 
-**Windows** : Double-cliquez sur `build_portable.bat`
+**Windows** : Double-cliquez sur `build_scripts/build_portable.bat`
 
 ou
 
-**PowerShell** : Clic droit sur `build_portable.ps1` → Exécuter
+**PowerShell** : Clic droit sur `build_scripts/build_portable.ps1` → Exécuter
 
 ou
 
@@ -47,7 +47,7 @@ cd "dist\ChatBot BDM Desktop"
 ## ✅ Checklist avant distribution
 
 - [ ] L'exe se lance sans erreur
-- [ ] Les données sont stockées dans `data/`
+- [ ] Les données (logs/exports) sont stockées dans `data/` à côté de l'exe (créé automatiquement)
 - [ ] Le déplacement du dossier fonctionne
 - [ ] Testé sur Windows 10 et 11
 - [ ] README.txt présent et à jour
@@ -72,7 +72,7 @@ dir "dist\ChatBot BDM Desktop\data"
 
 ## 📖 Documentation complète
 
-Pour plus de détails, consultez **BUILD_PORTABLE.md**
+Pour plus de détails, consultez **docs/BUILD_PORTABLE.md**
 
 ---
 

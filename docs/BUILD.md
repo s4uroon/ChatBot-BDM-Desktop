@@ -149,7 +149,7 @@ cp mes_avatars/assistant.png assets/avatars/assistant.png
 
 Ces fichiers seront automatiquement inclus dans le build.
 
-📖 Consultez `CUSTOMISATION_AVATARS.md` pour les spécifications des avatars.
+📖 Consultez `docs/CUSTOMISATION_AVATARS.md` pour les spécifications des avatars.
 
 ### Personnaliser l'Icône de l'Application
 
@@ -310,9 +310,10 @@ cd "dist/ChatBot BDM Desktop"
 ## 📚 Ressources
 
 - **PyInstaller Documentation** : https://pyinstaller.org/
-- **Guide des Avatars** : `CUSTOMISATION_AVATARS.md`
+- **Guide des Avatars** : `docs/CUSTOMISATION_AVATARS.md`
 - **Guide de l'Icône** : `assets/README.md`
 - **Configuration Build** : `ChatBot_BDM_Desktop.spec`
+- **Scripts de Build** : `build_scripts/`
 
 ---
 

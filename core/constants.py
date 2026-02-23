@@ -6,7 +6,7 @@ Constantes globales de l'application
 
 # Informations de l'application
 APP_NAME = "ChatBot BDM Desktop"
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 APP_ORGANIZATION = "ChatbotBDM"
 APP_ID = f"ChatbotBDM.ChatBotBDMDesktop.{APP_VERSION}"
 APP_CREATOR = "Gwendal CHAIGNEAU BOEZENNEC"

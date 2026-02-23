@@ -5,12 +5,12 @@
 #
 # Installation :
 #   pip install -r requirements.txt
-#   pip install -r requirements-build.txt
+#   pip install -r build_scripts/requirements-build.txt
 #
-# Puis lancer :
-#   build_portable.bat
+# Puis lancer (depuis la racine du projet) :
+#   build_scripts/build_portable.bat
 #   ou
-#   build_portable.ps1
+#   build_scripts/build_portable.ps1
 
 # PyInstaller pour créer l'exécutable
 pyinstaller>=6.0.0

@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-02-23
+
+### 🧹 Refactoring & Maintenance
+
+#### **Project Reorganization**
+
+- **New `build_scripts/` directory** : moved `build_portable.bat`, `build_portable.ps1`, and `requirements-build.txt` out of the project root
+- **New `docs/` directory** : moved all secondary documentation (`BUILD.md`, `BUILD_PORTABLE.md`, `QUICKSTART_PORTABLE.md`, `CUSTOMISATION_AVATARS.md`, `DEBUG_AVATARS.md`, `USER_GUIDE_PORTABLE.txt`, `contributing.md`) to declutter the root
+- Only `README.md` and `CHANGELOG.md` remain at the project root (convention)
+
+#### **Build Scripts Updated**
+
+- Both `build_portable.bat` and `build_portable.ps1` updated with a `cd` to the project root so they work correctly from their new `build_scripts/` subdirectory
+- All intra-documentation cross-references updated to reflect new paths
+
+#### **PyInstaller "data" directory cleanup**
+
+- Removed obsolete manual `mkdir data` command from `docs/BUILD_PORTABLE.md` (Option 3 — manual build)
+- The `data/` folder is created **automatically** by the application on first launch in portable mode — no manual creation needed in the build process
+- Added an explanatory note in the documentation to make this clear
+
+#### **Dependency corrections**
+
+- Corrected minimum Python version requirement from **3.8** to **3.9**
+  - The codebase uses `list[...]` and `tuple[...]` native type hints without `from __future__ import annotations`, which is only valid from Python 3.9+
+  - Updated: `requirements.txt`, `docs/BUILD_PORTABLE.md`, `build_scripts/build_portable.bat`, `build_scripts/build_portable.ps1`
+
+---
+
+## [2.1.0] - 2026-02-20
+
+### ✨ New Features
+
+#### **Full Markdown Rendering**
+
+- Complete Markdown support in chat responses: headers, bold, italic, code blocks, blockquotes, horizontal rules, task lists
+- Markdown table rendering with styled dark-theme CSS
+- All standard Markdown elements correctly rendered via QWebEngineView
+- **Files**: `utils/html_generator.py`, `ui/chat_widget.py`
+
+#### **Resizable Chat / Input Split**
+
+- Added a resizable splitter between the chat area and the text input
+- Users can drag to adjust the ratio of space between the conversation view and the input box
+- **Files**: `ui/main_window.py`, `ui/input_widget.py`
+
+#### **Input Formatting Disabled**
+
+- Removed automatic rich-text formatting from the input widget to preserve user-typed content exactly as written
+- **Files**: `ui/input_widget.py`
+
+#### **Sidebar Splitter Persistence**
+
+- Sidebar width and chat/input splitter ratio are now saved between sessions and restored on startup
+- **Files**: `core/settings_manager.py`, `ui/main_window.py`
+
+#### **Custom Avatar Images**
+
+- Support for custom `user.png` and `assistant.png` images in `assets/avatars/`
+- Avatars are loaded via base64 encoding to bypass QWebEngineView security restrictions
+- Avatar size increased (×1.44 from original) with rounded-rectangle style
+- **Files**: `utils/html_generator.py`, `utils/logo_utils.py`
+
+#### **Application Logo in Chat**
+
+- Replaced emoji-based header with the actual ChatBot BDM Desktop logo image (base64-encoded PNG)
+- **Files**: `utils/html_generator.py`, `utils/logo_utils.py`
+
+#### **Windows Taskbar Icon**
+
+- Added `ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID()` call for correct Windows taskbar icon grouping
+- **Files**: `main.py`
+
+### 🐛 Bug Fixes
+
+- **Duplicate window launch** : fixed an issue where the application would open two windows on startup
+- **Window maximize** : fixed window not correctly maximizing on Windows after `show()`
+- **Message duplication** : fixed a bug where shared list references caused duplicate messages in the chat
+- **Avatar loading** : fixed avatar images not rendering due to QWebEngineView's local-file security policy (resolved via base64 embedding)
+
+### 🏗️ Architecture
+
+- Added `core/tag_manager.py` module for conversation tag management
+- Added `workers/title_worker.py` for asynchronous auto-title generation
+- Added `utils/logo_utils.py` for base64 logo/avatar encoding
+- Updated `core/__init__.py` and `ui/__init__.py` to expose new modules
+- Updated PyInstaller `hiddenimports` in `ChatBot_BDM_Desktop.spec` for new modules
+
+---
+
 ## [2.0.1] - 2025-12-09
 
 ### 🐛 Bug Fixes

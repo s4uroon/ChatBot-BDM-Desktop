@@ -1,42 +1,44 @@
-# 🤖 Chatbot Desktop - Application Professionnelle
+# ChatBot BDM Desktop
 
-Application de bureau professionnel pour interagir avec des API OpenAI compatibles, avec interface graphique moderne, streaming en temps réel, et coloration syntaxique avancée.
+Application de bureau professionnelle pour interagir avec des API OpenAI compatibles — interface graphique moderne PyQt6, streaming en temps réel, rendu Markdown complet et coloration syntaxique locale.
 
-## ✨ Fonctionnalités
+## Fonctionnalités
 
-### 🎯 Cœur de l'Application
-- ✅ **Streaming en temps réel** - Réponses progressives via QThread
-- ✅ **SSL Bypass** - Support des certificats auto-signés (serveurs entreprise)
-- ✅ **Multi-conversations** - Gestion illimitée de conversations simultanées
-- ✅ **Base de données SQLite** - Persistance locale des conversations
-- ✅ **Export JSON/Markdown** - Export sélectif ou complet
+### Cœur de l'Application
+- **Streaming en temps réel** — Réponses progressives via QThread (sans blocage UI)
+- **SSL Bypass** — Support des certificats auto-signés (serveurs entreprise)
+- **Multi-conversations** — Gestion illimitée avec historique SQLite local
+- **Export JSON/Markdown** — Export sélectif ou complet des conversations
+- **Auto-titrage** — Génération automatique du titre de conversation par l'API
 
-### 🎨 Interface Utilisateur
-- ✅ **Sidebar avec sélection multiple** - Shift+Clic pour sélection par lot
-- ✅ **QWebEngineView** - Rendu HTML avec Highlight.js
-- ✅ **Coloration syntaxique** - 10+ langages supportés
-- ✅ **Boutons "Copier"** - Sur chaque bloc de code
-- ✅ **Scroll intelligent** - Auto-scroll vers la dernière question
-- ✅ **Personnalisation** - Couleurs de code configurables
+### Interface Utilisateur
+- **Rendu Markdown complet** — Headers, tableaux, listes, blockquotes, code, règles, task-lists
+- **Coloration syntaxique locale** — 17 langages via Highlight.js bundlé (aucune connexion internet requise)
+- **Thème clair/sombre** — Bascule entre atom-one-dark et atom-one-light
+- **Sidebar avec sélection multiple** — Shift+Clic, Shift+Flèches, suppression groupée
+- **Avatars personnalisables** — Placez `user.png` et `assistant.png` dans `assets/avatars/`
+- **Panneau redimensionnable** — Splitter entre la zone de chat et la saisie
+- **Compteur de tokens** — Estimation en temps réel de l'usage API
 
-### 🛠️ Technique
-- ✅ **Logging avancé** - Mode DEBUG activable via CLI
-- ✅ **Architecture MVC** - Séparation claire UI/Business/Data
-- ✅ **Signaux/Slots PyQt6** - Communication asynchrone propre
-- ✅ **Gestion d'erreurs robuste** - Try/catch et logging complet
+### Technique
+- **Architecture MVC** — Séparation claire UI / Business / Data
+- **Signaux/Slots PyQt6** — Communication asynchrone propre entre threads
+- **Gestion d'erreurs robuste** — Messages utilisateur contextuels avec suggestions
+- **Logging avancé** — Mode DEBUG activable via `--debug`
+- **Mode portable** — Données à côté de l'exe ou dans le profil utilisateur
 
-## 📋 Prérequis
+## Prérequis
 
-- **Python 3.8+**
+- **Python 3.9+**
 - **Système d'exploitation** : Windows / macOS / Linux
 
-## 🚀 Installation
+## Installation
 
-### 1. Cloner ou télécharger le projet
+### 1. Cloner le projet
 
 ```bash
 git clone <repo_url>
-cd chatbot_desktop
+cd ChatBot-BDM-Desktop
 ```
 
 ### 2. Créer un environnement virtuel (recommandé)
@@ -57,186 +59,45 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 🎮 Lancement
-
-### Mode Normal
+## Lancement
 
 ```bash
+# Mode normal
 python main.py
-```
 
-### Mode Debug (avec logs console)
-
-```bash
+# Mode debug (logs détaillés dans la console)
 python main.py --debug
-```
 
-### Avec base de données personnalisée
+# Base de données personnalisée
+python main.py --db /chemin/vers/custom.db
 
-```bash
-python main.py --db /path/to/custom.db
-```
+# Forcer le mode portable
+python main.py --portable
 
-### Afficher l'aide
-
-```bash
+# Afficher l'aide
 python main.py --help
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Premier Lancement
 
-1. **Ouvrir les Paramètres** : Menu `Paramètres` → `Configuration...` (Ctrl+,)
+1. Menu `Paramètres` → `Configuration...` (ou `Ctrl+,`)
 2. **Onglet Connexion** :
-   - Entrer votre **Clé API**
-   - Configurer l'**URL de base** (défaut : `https://api.openai.com/v1`)
-   - Choisir le **Modèle** (ex: `gpt-4`, `gpt-3.5-turbo`)
-   - **Décocher "Vérification SSL"** si serveur auto-signé
-3. **Tester la connexion** avec le bouton `🔍 Tester la connexion`
-4. **Onglet Apparence Code** :
-   - Personnaliser les couleurs de syntaxe
-   - Prévisualiser en temps réel
-   - Réinitialiser aux valeurs par défaut si besoin
-5. **Enregistrer**
+   - Clé API
+   - URL de base (défaut : `https://api.openai.com/v1`)
+   - Modèle (ex : `gpt-4`, `gpt-4o-mini`)
+   - Décocher "Vérification SSL" si serveur auto-signé
+3. Tester avec le bouton `Tester la connexion`
+4. **Onglet Apparence Code** : personnaliser les couleurs de syntaxe
 
-### Serveurs Auto-signés (Entreprise)
+### Serveurs avec certificats auto-signés
 
-Pour les serveurs avec certificats auto-signés :
+Décocher `Activer la vérification SSL` dans les paramètres → utilise `httpx.Client(verify=False)`.
 
-1. Dans les paramètres, **décocher** `Activer la vérification SSL`
-2. Cette configuration utilise `httpx.Client(verify=False)`
-3. ⚠️ **Sécurité** : N'utilisez cette option que pour des serveurs de confiance
+> Avertissement : N'utiliser cette option que pour des serveurs de confiance.
 
-## 📖 Utilisation
-
-### Créer une Conversation
-
-- **Bouton** : `➕ Nouvelle` dans la sidebar
-- **Raccourci** : `Ctrl+N`
-
-### Envoyer un Message
-
-1. Taper le message dans la zone de saisie
-2. **Entrée** = Envoyer
-3. **Shift+Entrée** = Nouvelle ligne
-
-### Sélection Multiple
-
-- **Shift+Clic** sur les conversations
-- **Shift+Flèches** pour navigation
-- **Suppr** pour supprimer la sélection
-
-### Export
-
-1. Menu `Fichier` → `Exporter...` (Ctrl+E)
-2. Choisir :
-   - **Sélection actuelle** (si conversations sélectionnées)
-   - **Toutes les conversations**
-3. Format : **JSON** ou **Markdown**
-4. Sauvegarder
-
-## 🎨 Coloration Syntaxique
-
-### Langages Supportés
-
-- Python
-- JavaScript / TypeScript
-- Bash / Shell
-- PowerShell
-- Java
-- JSON
-- HTML / CSS
-- PHP
-- Perl
-- SQL
-- C / C++
-- C#
-- Ruby
-- Go
-- Rust
-
-### Personnalisation
-
-Dans `Paramètres` → `Apparence Code` :
-
-- **Commentaires** : `💬`
-- **Mots-clés** : `🔑`
-- **Chaînes** : `📝`
-- **Nombres** : `🔢`
-- **Fonctions** : `⚙️`
-
-## 📊 Structure du Projet
-
-```
-chatbot_desktop/
-│
-├── main.py                          # Point d'entrée
-├── requirements.txt                 # Dépendances
-├── chatbot.db                       # Base de données (auto-généré)
-│
-├── core/
-│   ├── logger.py                    # Système de logging
-│   ├── database.py                  # Gestionnaire SQLite
-│   ├── api_client.py                # Client OpenAI (SSL bypass)
-│   ├── settings_manager.py          # QSettings wrapper
-│   ├── export_manager.py            # Export JSON/MD
-│   └── main_controller.py           # Contrôleur principal
-│
-├── ui/
-│   ├── main_window.py               # Fenêtre principale
-│   ├── sidebar_widget.py            # Historique conversations
-│   ├── chat_widget.py               # Zone de chat (WebEngine)
-│   ├── input_widget.py              # Zone de saisie
-│   └── settings_dialog.py           # Dialogue paramètres
-│
-├── workers/
-│   └── api_worker.py                # Thread streaming API
-│
-└── utils/
-    ├── html_generator.py            # Génération HTML
-    ├── code_parser.py               # Détection code
-    └── css_generator.py             # CSS personnalisé
-```
-
-## 🔧 Logs en Mode Debug
-
-Lorsque lancé avec `--debug`, l'application affiche :
-
-```
-[CONFIG] État de la configuration
-[API] Requêtes et chunks reçus
-[PARSER] Blocs de code détectés
-[DATABASE] Opérations SQL
-[EXPORT] Fichiers exportés
-[ERREUR] Stack traces complètes
-```
-
-## 🐛 Dépannage
-
-### L'application ne démarre pas
-
-```bash
-# Vérifier l'installation
-pip install --upgrade -r requirements.txt
-
-# Lancer en mode debug
-python main.py --debug
-```
-
-### Erreur de connexion API
-
-1. Vérifier la clé API
-2. Tester l'URL avec curl : `curl -I https://api.openai.com/v1`
-3. Si certificat auto-signé : décocher `Vérification SSL`
-
-### Pas de coloration syntaxique
-
-- Vérifier les balises de code : \`\`\`python
-- Internet requis pour CDN Highlight.js
-- Consulter les logs : `--debug`
-
-## 📝 Raccourcis Clavier
+## Raccourcis Clavier
 
 | Raccourci | Action |
 |-----------|--------|
@@ -248,36 +109,140 @@ python main.py --debug
 | `Shift+Entrée` | Nouvelle ligne |
 | `Suppr` | Supprimer sélection |
 
-## 🔒 Sécurité
+## Langages de Coloration Syntaxique
+
+Python, JavaScript, Bash/Shell, PowerShell, Java, JSON, HTML/XML, PHP, Perl, SQL, C, C++, C#, Ruby, Go, Rust (17 langages, bundlés localement — aucune connexion internet requise)
+
+## Structure du Projet
+
+```
+ChatBot-BDM-Desktop/
+│
+├── main.py                          # Point d'entrée
+├── requirements.txt                 # Dépendances runtime (Python 3.9+)
+├── ChatBot_BDM_Desktop.spec         # Configuration PyInstaller
+├── README.md
+├── CHANGELOG.md
+│
+├── core/                            # Logique métier
+│   ├── api_client.py                # Client OpenAI (SSL bypass)
+│   ├── constants.py                 # Constantes globales
+│   ├── conversation_manager.py      # Gestion des conversations
+│   ├── database.py                  # Gestionnaire SQLite
+│   ├── export_manager.py            # Export JSON/Markdown
+│   ├── init_files.py                # Initialisation
+│   ├── logger.py                    # Système de logging
+│   ├── main_controller.py           # Contrôleur principal
+│   ├── paths.py                     # Gestion des chemins (portable/normal)
+│   ├── settings_manager.py          # QSettings wrapper
+│   └── tag_manager.py               # Gestion des tags
+│
+├── ui/                              # Interface utilisateur
+│   ├── chat_widget.py               # Zone de chat (QWebEngineView)
+│   ├── export_dialog.py             # Dialogue d'export
+│   ├── input_widget.py              # Zone de saisie
+│   ├── main_window.py               # Fenêtre principale
+│   ├── settings_dialog.py           # Dialogue paramètres
+│   └── sidebar_widget.py            # Historique des conversations
+│
+├── workers/                         # Threads asynchrones
+│   ├── api_worker.py                # Streaming API (QThread)
+│   └── title_worker.py              # Auto-titrage (QThread)
+│
+├── utils/                           # Utilitaires
+│   ├── code_parser.py               # Détection blocs de code
+│   ├── css_generator.py             # CSS personnalisé
+│   ├── html_generator.py            # Génération HTML + Markdown
+│   └── logo_utils.py                # Encodage base64 images
+│
+├── assets/                          # Ressources statiques
+│   ├── ChatBot_BDM_Desktop.ico      # Icône Windows
+│   ├── ChatBot_BDM_Desktop.png      # Logo
+│   ├── style.qss                    # Thème Qt (dark)
+│   ├── avatars/                     # Avatars personnalisables
+│   │   ├── user.png
+│   │   └── assistant.png
+│   └── highlightjs/                 # Highlight.js bundlé localement
+│       ├── highlight.min.js
+│       ├── languages/               # 17 langages
+│       └── styles/                  # Thèmes clair/sombre
+│
+├── build_scripts/                   # Scripts et config de build
+│   ├── build_portable.bat           # Build Windows (Batch)
+│   ├── build_portable.ps1           # Build Windows (PowerShell)
+│   └── requirements-build.txt       # Dépendances de compilation
+│
+└── docs/                            # Documentation secondaire
+    ├── BUILD.md                     # Guide de build détaillé
+    ├── BUILD_PORTABLE.md            # Guide build version portable
+    ├── QUICKSTART_PORTABLE.md       # Guide rapide
+    ├── CUSTOMISATION_AVATARS.md     # Personnalisation avatars
+    ├── DEBUG_AVATARS.md             # Dépannage avatars
+    ├── USER_GUIDE_PORTABLE.txt      # Guide utilisateur (exe portable)
+    └── contributing.md              # Guide de contribution
+```
+
+## Build Windows (Exécutable Portable)
+
+```bash
+# Installer les dépendances de build
+pip install -r build_scripts/requirements-build.txt
+
+# Compiler (Windows — double-clic ou ligne de commande)
+build_scripts\build_portable.bat
+
+# Ou via PowerShell
+PowerShell -ExecutionPolicy Bypass -File build_scripts\build_portable.ps1
+
+# Ou manuellement (depuis la racine du projet)
+pyinstaller ChatBot_BDM_Desktop.spec
+```
+
+Le résultat se trouve dans `dist/ChatBot BDM Desktop/`.
+
+Pour plus de détails : `docs/BUILD.md` et `docs/BUILD_PORTABLE.md`
+
+## Stockage des Données
+
+| Fichier | Mode normal | Mode portable |
+|---------|-------------|---------------|
+| Base de données | `~/.ChatBot_BDM_Desktop/chatbot.db` | `~/.ChatBot_BDM_Desktop/chatbot.db` |
+| Paramètres | `~/.ChatBot_BDM_Desktop/settings.ini` | `~/.ChatBot_BDM_Desktop/settings.ini` |
+| Logs | `~/.ChatBot_BDM_Desktop/logs/` | `{exe_dir}/data/logs/` |
+| Exports | `~/.ChatBot_BDM_Desktop/exports/` | `{exe_dir}/data/exports/` |
+
+En mode portable, la base de données et les paramètres restent dans le profil utilisateur pour garantir leur persistance même si le dossier de l'exe est déplacé.
+
+## Dépannage
+
+### L'application ne démarre pas
+
+```bash
+pip install --upgrade -r requirements.txt
+python main.py --debug
+```
+
+### Erreur de connexion API
+
+1. Vérifier la clé API dans les paramètres
+2. Tester l'URL avec curl : `curl -I https://api.openai.com/v1`
+3. Si certificat auto-signé : décocher `Vérification SSL`
+
+### Avatars absents
+
+Vérifier que `assets/avatars/user.png` et `assets/avatars/assistant.png` existent.
+Voir `docs/CUSTOMISATION_AVATARS.md` pour les spécifications.
+
+## Sécurité
 
 - Les clés API sont stockées dans `QSettings` (registre Windows / fichiers config Linux/macOS)
-- **SSL Bypass** : À utiliser uniquement pour serveurs de confiance
+- **SSL Bypass** : à utiliser uniquement pour des serveurs de confiance internes
 - Les conversations sont stockées en clair dans SQLite local
 
-## 🤝 Contribution
-
-Cette application est un exemple complet d'architecture professionnelle PyQt6.
-
-### Points d'Extension
-
-- Ajouter d'autres modèles IA
-- Implémenter des plugins
-- Support de fichiers (images, PDFs)
-- Mode collaboratif multi-utilisateurs
-
-## 📜 Licence
+## Licence
 
 À définir selon vos besoins.
 
-## 👨‍💻 Support
-
-Pour toute question :
-1. Consulter les logs en mode `--debug`
-2. Vérifier la configuration dans `Paramètres`
-3. Tester la connexion API
-
 ---
 
-**Version** : 1.0.0  
-**Framework** : PyQt6  
-**Compatibilité API** : OpenAI Compatible
+**Version** : 2.2.0 | **Framework** : PyQt6 | **Compatibilité API** : OpenAI Compatible

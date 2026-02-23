@@ -1,5 +1,5 @@
 # Chatbot Desktop - Requirements
-# Python 3.8+
+# Python 3.9+ (utilisation de list[...] et tuple[...] en type hints natifs)
 
 # Interface graphique
 PyQt6==6.7.1
