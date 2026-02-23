@@ -30,7 +30,7 @@ La version portable de ChatBot BDM Desktop offre les avantages suivants :
 
 Avant de compiler l'application, assurez-vous d'avoir :
 
-### 1. Python 3.8 ou supérieur
+### 1. Python 3.9 ou supérieur
 
 ```bash
 # Vérifier la version de Python
@@ -64,7 +64,7 @@ Vous avez **3 options** pour compiler l'application :
 Double-cliquez simplement sur :
 
 ```
-build_portable.bat
+build_scripts/build_portable.bat
 ```
 
 Le script va :
@@ -76,12 +76,12 @@ Le script va :
 
 ### Option 2 : Script PowerShell
 
-Clic droit sur `build_portable.ps1` → **Exécuter avec PowerShell**
+Clic droit sur `build_scripts/build_portable.ps1` → **Exécuter avec PowerShell**
 
 Ou en ligne de commande :
 
 ```powershell
-PowerShell -ExecutionPolicy Bypass -File build_portable.ps1
+PowerShell -ExecutionPolicy Bypass -File build_scripts/build_portable.ps1
 ```
 
 ### Option 3 : Ligne de commande manuelle
@@ -92,10 +92,9 @@ rmdir /s /q build dist
 
 # 2. Compiler avec PyInstaller
 pyinstaller ChatBot_BDM_Desktop.spec
-
-# 3. Créer le dossier data
-mkdir "dist\ChatBot BDM Desktop\data"
 ```
+
+> **Note :** Le dossier `data/` (logs et exports) est créé **automatiquement** par l'application lors du premier lancement en mode portable. Aucune création manuelle n'est nécessaire.
 
 ---
 

@@ -2,12 +2,14 @@
 REM ============================================================================
 REM Script de Build - ChatBot BDM Desktop - Version Portable Windows
 REM ============================================================================
+REM Se déplacer vers le répertoire racine du projet (parent de build_scripts)
+cd /d "%~dp0\.."
 REM
 REM Ce script compile l'application ChatBot BDM Desktop en un exécutable
 REM Windows portable qui peut être placé n'importe où sur l'ordinateur.
 REM
 REM Prérequis :
-REM   - Python 3.8 ou supérieur installé
+REM   - Python 3.9 ou supérieur installé
 REM   - PyInstaller installé (pip install pyinstaller)
 REM   - Toutes les dépendances installées (pip install -r requirements.txt)
 REM
@@ -27,7 +29,7 @@ python --version >nul 2>&1
 if errorlevel 1 (
     echo [ERREUR] Python n'est pas installé ou n'est pas dans le PATH
     echo.
-    echo Veuillez installer Python 3.8 ou supérieur depuis https://www.python.org/
+    echo Veuillez installer Python 3.9 ou supérieur depuis https://www.python.org/
     pause
     exit /b 1
 )
@@ -112,7 +114,7 @@ echo   2. Si souhaité, supprimez aussi C:\Users\VOTRE_NOM\.ChatBot_BDM_Desktop\
 echo      pour effacer toutes vos conversations et paramètres
 echo.
 echo ============================================================================
-echo  Version : 2.1.0
+echo  Version : 2.2.0
 echo  Date : %date%
 echo ============================================================================
 ) > "dist\ChatBot BDM Desktop\README.txt"

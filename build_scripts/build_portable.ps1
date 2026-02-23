@@ -1,12 +1,14 @@
 # ============================================================================
 # Script de Build - ChatBot BDM Desktop - Version Portable Windows (PowerShell)
 # ============================================================================
+# Se déplacer vers le répertoire racine du projet (parent de build_scripts)
+Set-Location "$PSScriptRoot\.."
 #
 # Ce script compile l'application ChatBot BDM Desktop en un exécutable
 # Windows portable qui peut être placé n'importe où sur l'ordinateur.
 #
 # Prérequis :
-#   - Python 3.8 ou supérieur installé
+#   - Python 3.9 ou supérieur installé
 #   - PyInstaller installé (pip install pyinstaller)
 #   - Toutes les dépendances installées (pip install -r requirements.txt)
 #
@@ -49,7 +51,7 @@ try {
 } catch {
     Write-Error-Message "Python n'est pas installé ou n'est pas dans le PATH"
     Write-Host ""
-    Write-Host "Veuillez installer Python 3.8 ou supérieur depuis https://www.python.org/" -ForegroundColor White
+    Write-Host "Veuillez installer Python 3.9 ou supérieur depuis https://www.python.org/" -ForegroundColor White
     Read-Host "Appuyez sur Entrée pour quitter"
     exit 1
 }
@@ -140,7 +142,7 @@ DÉSINSTALLATION :
      pour effacer toutes vos conversations et paramètres
 
 ============================================================================
- Version : 2.1.0
+ Version : 2.2.0
  Date : $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 ============================================================================
 "@

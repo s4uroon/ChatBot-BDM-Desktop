@@ -53,7 +53,7 @@ ls -lh assets/avatars/
 ```
 
 **✅ Fichiers trouvés** → Passez à l'étape 2
-**❌ Fichiers manquants** → Créez-les (voir `CUSTOMISATION_AVATARS.md`)
+**❌ Fichiers manquants** → Créez-les (voir `docs/CUSTOMISATION_AVATARS.md`)
 
 ### Étape 2 : Vérifier le Contenu des Fichiers
 
@@ -175,7 +175,7 @@ mkdir -p assets/avatars
 
 **Cause** : Mode PyInstaller détecté, fichiers dans un dossier temporaire
 
-**Solution** : C'est normal en mode exécutable. Vérifiez que les fichiers sont inclus dans le build (voir `BUILD.md`)
+**Solution** : C'est normal en mode exécutable. Vérifiez que les fichiers sont inclus dans le build (voir `docs/BUILD.md`)
 
 ### Problème : Warnings "Langage introuvable: html/css"
 
