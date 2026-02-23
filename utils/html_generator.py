@@ -344,7 +344,7 @@ class HTMLGenerator:
                     r'(?!</li>)(?!<li)'
                     r'(?!</ul>)(?!<ul)'
                     r'(?!</ol>)(?!<ol)'
-                    r'(?!</table>)(?!<t[hdr])(?!</t[hdr])'
+                    r'(?!</table>)(?!<table)(?!<t[hdr])(?!<tbody)(?!</t[hdr])(?!</tbody)'
                     r'(?!<hr)(?!</hr)'
                     r'(?!</blockquote>)(?!<blockquote)'
                     r'(?!</h[1-6]>)(?!<h[1-6][ >])',
@@ -388,7 +388,8 @@ class HTMLGenerator:
             # Détecter le début d'un tableau : ligne avec pipes + ligne séparateur
             if (i + 1 < len(lines)
                     and '|' in lines[i]
-                    and re.match(r'^\s*\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|?\s*$', lines[i + 1])):
+                    and '|' in lines[i + 1]
+                    and re.match(r'^\s*\|?[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|?\s*$', lines[i + 1])):
 
                 # Extraire les en-têtes
                 header_cells = self._parse_table_row(lines[i])
