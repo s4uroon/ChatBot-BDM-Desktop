@@ -389,7 +389,8 @@ class MainWindow(QMainWindow):
         conv_id = self.controller.create_new_conversation()
         if conv_id > 0:
             self.sidebar.select_conversation(conv_id)
-            self.chat_widget.clear_conversation()
+            # Déclencher le pipeline complet : _restore_conversation_profile + _refresh_profile_combo
+            self.controller.load_conversation(conv_id)
             self.input_widget.set_focus()
             self.status_bar.showMessage("New session created")
     
