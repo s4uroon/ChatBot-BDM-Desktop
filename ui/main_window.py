@@ -497,6 +497,7 @@ class MainWindow(QMainWindow):
         self.api_worker.chunk_received.connect(self._on_chunk_received)
         self.api_worker.response_complete.connect(self._on_response_complete)
         self.api_worker.error_occurred.connect(self._on_api_error)
+        self.api_worker.finished.connect(self._on_worker_finished)
         
         # Démarrer
         self.current_response = ""
@@ -546,10 +547,6 @@ class MainWindow(QMainWindow):
 
         self.logger.debug("[MAIN_WINDOW] Message ajouté, le scroll sera géré automatiquement par chat_widget")
 
-        # Réactiver l'input
-        self.input_widget.set_enabled(True)
-        self.input_widget.set_focus()
-
         total_tokens = self._calculate_conversation_tokens(self.controller.current_messages)
         msg_count = len(self.controller.current_messages)
         token_str = self._build_token_status(total_tokens)
@@ -564,13 +561,30 @@ class MainWindow(QMainWindow):
             first_user_msg = self.controller.current_messages[0].get('content', '')
             self._start_title_worker(self.controller.current_conversation_id, first_user_msg)
 
-        # Nettoyer le worker de manière thread-safe
-        self._cleanup_worker()
+    def _on_worker_finished(self):
+        """
+        Appelé automatiquement par QThread.finished quand run() retourne, quelle
+        que soit la cause (succès, erreur, arrêt utilisateur — y compris arrêt
+        avant le 1er chunk). Source unique de vérité pour la remise à zéro de l'UI.
+        """
+        try:
+            self.chat_widget.hide_typing_indicator()
+        except Exception as e:
+            self.logger.warning(f"[MAIN_WINDOW] Erreur lors du masquage de l'indicateur: {e}")
+
+        self.input_widget.set_enabled(True)
+        self.input_widget.set_focus()
+
+        # Le thread est terminé : on peut lâcher la référence sans wait()
+        self.api_worker = None
+
         self.response_mutex.lock()
         try:
             self.current_response = ""
         finally:
             self.response_mutex.unlock()
+
+        self.logger.debug("[MAIN_WINDOW] Worker terminé, UI réinitialisée")
 
     def _on_api_error(self, error_msg: str):
         """Erreur lors de l'appel API."""
@@ -578,10 +592,7 @@ class MainWindow(QMainWindow):
             self.chat_widget.hide_typing_indicator()
         except Exception as e:
             self.logger.warning(f"[MAIN_WINDOW] Erreur lors du masquage de l'indicateur: {e}")
-        finally:
-            self._on_error(error_msg)
-            self.input_widget.set_enabled(True)
-            self._cleanup_worker()
+        self._on_error(error_msg)
     
     # === GESTION DES PROFILS API ===
 
