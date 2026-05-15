@@ -8,7 +8,8 @@ from typing import Optional
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar
+    QSplitter, QMenuBar, QMenu, QFileDialog, QMessageBox, QStatusBar,
+    QComboBox, QPushButton, QLabel
 )
 from PyQt6.QtCore import Qt, QTimer, QMutex
 from PyQt6.QtGui import QAction, QKeySequence, QKeyEvent, QShortcut, QIcon
@@ -98,6 +99,36 @@ class MainWindow(QMainWindow):
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
         center_layout.setContentsMargins(5, 5, 5, 5)
+
+        # Barre de sélection de profil API
+        profile_bar = QHBoxLayout()
+        profile_bar.setContentsMargins(0, 0, 0, 4)
+        profile_bar.setSpacing(6)
+
+        profile_label = QLabel("Profil API :")
+        profile_label.setStyleSheet("color: #909090; font-size: 11px;")
+        profile_bar.addWidget(profile_label)
+
+        self.profile_combo = QComboBox()
+        self.profile_combo.setFixedWidth(200)
+        self.profile_combo.setToolTip("Sélectionner le profil API actif")
+        self.profile_combo.setStyleSheet("font-size: 12px;")
+        profile_bar.addWidget(self.profile_combo)
+
+        manage_profiles_btn = QPushButton("⚙ Gérer")
+        manage_profiles_btn.setFixedWidth(80)
+        manage_profiles_btn.setToolTip("Gérer les profils API")
+        manage_profiles_btn.clicked.connect(self._on_manage_profiles)
+        manage_profiles_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                padding: 2px 6px;
+            }
+        """)
+        profile_bar.addWidget(manage_profiles_btn)
+        profile_bar.addStretch()
+
+        center_layout.addLayout(profile_bar)
 
         # Splitter vertical entre chat et input
         self.chat_input_splitter = QSplitter(Qt.Orientation.Vertical)
@@ -288,13 +319,11 @@ class MainWindow(QMainWindow):
 
     def _on_cancel_streaming(self):
         """Annule le streaming en cours si actif."""
-        if self.api_worker and self.api_worker.is_running():
-            self.logger.debug("[MAIN_WINDOW] Annulation du streaming par l'utilisateur (Escape)")
-            self._cleanup_worker()
-            self.chat_widget.hide_typing_indicator()
-            self.input_widget.set_enabled(True)
-            self.current_response = ""
-            self.status_bar.showMessage("⚠️ Response cancelled", 3000)
+        if self.api_worker and self.api_worker.isRunning():
+            self.logger.debug("[MAIN_WINDOW] Annulation du streaming par l'utilisateur")
+            self.api_worker.stop()
+            # La réponse partielle sera émise via response_complete par le worker
+            self.status_bar.showMessage("⏹ Arrêt de la génération...", 2000)
 
     def _on_focus_search(self):
         """Donne le focus à la barre de recherche."""
@@ -316,6 +345,7 @@ class MainWindow(QMainWindow):
 
         # Input
         self.input_widget.message_submitted.connect(self._on_message_submitted)
+        self.input_widget.stop_generation_requested.connect(self._on_cancel_streaming)
         self.input_widget.text_edit.textChanged.connect(self._on_draft_changed)
 
         # Timer debounce pour sauvegarde du brouillon (500ms)
@@ -323,6 +353,9 @@ class MainWindow(QMainWindow):
         self._draft_save_timer.setSingleShot(True)
         self._draft_save_timer.setInterval(500)
         self._draft_save_timer.timeout.connect(self._save_draft)
+
+        # Profil combo
+        self.profile_combo.currentIndexChanged.connect(self._on_profile_combo_changed)
 
         # Contrôleur
         self.controller.conversation_loaded.connect(self._on_conversation_loaded)
@@ -336,6 +369,9 @@ class MainWindow(QMainWindow):
 
         # Charger les tags
         self._refresh_tags()
+
+        # Charger les profils dans le combo
+        self._refresh_profile_combo()
 
         # Restaurer le brouillon sauvegardé
         draft = self.controller.settings_manager.get_draft()
@@ -449,7 +485,8 @@ class MainWindow(QMainWindow):
         self.api_worker = APIWorker(
             api_client=self.controller.api_client,
             messages=messages,
-            temperature=self.controller.settings_manager.get_temperature()
+            temperature=self.controller.get_active_temperature(),
+            max_tokens=self.controller.get_active_max_tokens(),
         )
         
         # Connecter les signaux
@@ -542,8 +579,41 @@ class MainWindow(QMainWindow):
             self.input_widget.set_enabled(True)
             self._cleanup_worker()
     
+    # === GESTION DES PROFILS API ===
+
+    def _refresh_profile_combo(self):
+        """Met à jour le QComboBox des profils sans déclencher le signal."""
+        self.profile_combo.blockSignals(True)
+        self.profile_combo.clear()
+        profiles = self.controller.settings_manager.get_profiles()
+        active_id = self.controller.settings_manager.get_active_profile_id()
+        for p in profiles:
+            self.profile_combo.addItem(p.name, p.profile_id)
+        idx = self.profile_combo.findData(active_id)
+        if idx >= 0:
+            self.profile_combo.setCurrentIndex(idx)
+        self.profile_combo.blockSignals(False)
+
+    def _on_profile_combo_changed(self, index: int):
+        """Bascule vers le profil sélectionné."""
+        profile_id = self.profile_combo.currentData()
+        if profile_id:
+            self.controller.switch_profile(profile_id)
+
+    def _on_manage_profiles(self):
+        """Ouvre le dialog de gestion des profils."""
+        from .profile_manager_dialog import ProfileManagerDialog
+        dlg = ProfileManagerDialog(self.controller.settings_manager, self)
+        dlg.profiles_updated.connect(self._on_profiles_updated)
+        dlg.exec()
+
+    def _on_profiles_updated(self):
+        """Rafraîchit le client et le combo après modification des profils."""
+        self.controller._initialize_api_client()
+        self._refresh_profile_combo()
+
     # === MENUS ===
-    
+
     def _on_export(self):
         """Ouvre le dialogue d'export."""
         selected_ids = self.sidebar.get_selected_conversation_ids()

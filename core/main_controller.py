@@ -8,7 +8,7 @@ from typing import Optional, List
 from PyQt6.QtCore import QObject, pyqtSignal
 from .logger import get_logger
 from .database import DatabaseManager
-from .api_client import APIClient
+from .api_client import APIClient, create_api_client
 from .settings_manager import SettingsManager
 from .export_manager import ExportManager
 from .conversation_manager import ConversationManager
@@ -72,39 +72,40 @@ class MainController(QObject):
         self.logger.debug("[CONTROLLER] Initialisé")
     
     def _initialize_api_client(self):
-        """Initialise le client API avec les paramètres sauvegardés."""
+        """Initialise le client API depuis le profil actif."""
         try:
-            api_key = self.settings_manager.get_api_key()
-            base_url = self.settings_manager.get_base_url()
-            model = self.settings_manager.get_model()
-            verify_ssl = self.settings_manager.get_verify_ssl()
-            
-            if api_key:
-                self.api_client = APIClient(
-                    api_key=api_key,
-                    base_url=base_url,
-                    model=model,
-                    verify_ssl=verify_ssl
+            profile = self.settings_manager.get_active_profile()
+            if profile and profile.api_key:
+                if self.api_client:
+                    self.api_client.close()
+                self.api_client = create_api_client(profile)
+                self.logger.debug(
+                    f"[CONFIG] Profil actif: '{profile.name}' "
+                    f"({profile.provider}) → {profile.model}"
                 )
-                
-                config = {
-                    'api_key': api_key,
-                    'base_url': base_url,
-                    'model': model,
-                    'verify_ssl': verify_ssl
-                }
-                self.logger.debug(f"[CONFIG] État de la configuration:")
-                for key, value in config.items():
-                    if 'api_key' in key.lower() or 'key' in key.lower():
-                        display_value = f"{value[:8]}..." if value else "Non définie"
-                    else:
-                        display_value = value
-                    self.logger.debug(f"  - {key}: {display_value}")
             else:
-                self.logger.debug("[CONTROLLER] Aucune clé API configurée")
-        
+                self.logger.debug("[CONTROLLER] Aucun profil actif configuré")
+
         except Exception as e:
             self.logger.error(f"[CONTROLLER] Initialisation API Client", exc_info=True)
+
+    def switch_profile(self, profile_id: str):
+        """Bascule vers un autre profil API à chaud."""
+        self.settings_manager.set_active_profile_id(profile_id)
+        self._initialize_api_client()
+        profile = self.settings_manager.get_active_profile()
+        name = profile.name if profile else "?"
+        self.status_changed.emit(f"Profil API changé : {name}")
+
+    def get_active_temperature(self) -> float:
+        """Retourne la température du profil actif."""
+        profile = self.settings_manager.get_active_profile()
+        return profile.temperature if profile else 0.7
+
+    def get_active_max_tokens(self) -> Optional[int]:
+        """Retourne le max_tokens du profil actif."""
+        profile = self.settings_manager.get_active_profile()
+        return profile.max_tokens if profile else None
     
     # === GESTION DES CONVERSATIONS ===
     

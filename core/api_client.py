@@ -21,36 +21,45 @@ class APIClient:
         api_key: str,
         base_url: str = "https://api.openai.com/v1",
         model: str = "gpt-4",
-        verify_ssl: bool = False
+        verify_ssl: bool = False,
+        provider: str = "openai"
     ):
         """
         Initialise le client OpenAI avec configuration SSL personnalisée.
-        
+
         Args:
-            api_key: Clé API OpenAI
+            api_key: Clé API du fournisseur
             base_url: URL de base de l'API (support serveurs locaux)
             model: Modèle à utiliser par défaut
             verify_ssl: Vérification SSL (False pour certificats auto-signés)
+            provider: Fournisseur ("openai", "anthropic", "local")
         """
         self.logger = get_logger()
         self.model = model
         self.base_url = base_url
-        
-        # Configuration du client HTTP avec bypass SSL
-        # CRITIQUE: verify=False permet l'usage de certificats auto-signés
+        self.provider = provider
+
+        # Headers supplémentaires pour Anthropic (endpoint compatible OpenAI)
+        extra_headers = {}
+        if provider == "anthropic":
+            extra_headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            }
+
         http_client = httpx.Client(
             verify=verify_ssl,
             timeout=httpx.Timeout(60.0, connect=10.0)
         )
-        
-        # Initialisation du client OpenAI avec transport personnalisé
+
         self.client = OpenAI(
             api_key=api_key,
             base_url=base_url,
-            http_client=http_client
+            http_client=http_client,
+            default_headers=extra_headers,
         )
-        
-        self.logger.debug(f"[API_CLIENT] Initialisé - URL: {base_url}, SSL verify: {verify_ssl}")
+
+        self.logger.debug(f"[API_CLIENT] Initialisé - provider: {provider}, URL: {base_url}, SSL verify: {verify_ssl}")
     
     def test_connection(self) -> tuple[bool, str]:
         """
@@ -177,3 +186,14 @@ class APIClient:
             self.logger.debug("[API_CLIENT] Client fermé")
         except Exception as e:
             self.logger.error(f"[API_CLIENT] Erreur lors de la fermeture: {e}")
+
+
+def create_api_client(profile) -> "APIClient":
+    """Fabrique un APIClient à partir d'un APIProfile."""
+    return APIClient(
+        api_key=profile.api_key,
+        base_url=profile.base_url,
+        model=profile.model,
+        verify_ssl=profile.verify_ssl,
+        provider=profile.provider,
+    )
