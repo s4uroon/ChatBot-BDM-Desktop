@@ -106,6 +106,7 @@ class ProfileManagerDialog(QDialog):
         form.addRow("", self.verify_ssl_check)
 
         self.is_default_check = QCheckBox("Définir comme profil par défaut")
+        self.is_default_check.toggled.connect(self._on_default_toggled)
         form.addRow("", self.is_default_check)
 
         self.temperature_spin = QDoubleSpinBox()
@@ -202,7 +203,9 @@ class ProfileManagerDialog(QDialog):
         self.base_url_input.setText(profile.base_url)
         self.model_input.setText(profile.model)
         self.verify_ssl_check.setChecked(profile.verify_ssl)
+        self.is_default_check.blockSignals(True)
         self.is_default_check.setChecked(profile.is_default)
+        self.is_default_check.blockSignals(False)
         self.temperature_spin.setValue(profile.temperature)
         self.max_tokens_spin.setValue(profile.max_tokens or 0)
 
@@ -213,7 +216,9 @@ class ProfileManagerDialog(QDialog):
         self.base_url_input.clear()
         self.model_input.clear()
         self.verify_ssl_check.setChecked(False)
+        self.is_default_check.blockSignals(True)
         self.is_default_check.setChecked(False)
+        self.is_default_check.blockSignals(False)
         self.temperature_spin.setValue(0.7)
         self.max_tokens_spin.setValue(0)
 
@@ -230,6 +235,7 @@ class ProfileManagerDialog(QDialog):
             api_key="",
             base_url=Provider.DEFAULT_URLS[provider],
             model=Provider.DEFAULT_MODELS[provider],
+            is_default=(len(self.profiles) == 0),
         )
         self.profiles.append(new_profile)
         item = QListWidgetItem(new_profile.name)
@@ -257,6 +263,22 @@ class ProfileManagerDialog(QDialog):
         self._load_list()
         row = min(idx, len(self.profiles) - 1)
         self.profile_list.setCurrentRow(row)
+
+    def _on_default_toggled(self, checked: bool):
+        """Garantit l'unicité du défaut dès le clic, sans attendre la sauvegarde."""
+        idx = self._current_index
+        if idx < 0 or idx >= len(self.profiles):
+            return
+        if checked:
+            for i, p in enumerate(self.profiles):
+                p.is_default = (i == idx)
+        else:
+            # Empêcher de décocher s'il n'y a plus aucun défaut → re-cocher
+            if not any(p.is_default for p in self.profiles):
+                self.is_default_check.blockSignals(True)
+                self.is_default_check.setChecked(True)
+                self.is_default_check.blockSignals(False)
+                self.profiles[idx].is_default = True
 
     def _on_provider_changed(self, _index: int):
         provider = self.provider_combo.currentData()

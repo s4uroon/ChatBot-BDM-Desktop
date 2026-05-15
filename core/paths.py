@@ -61,10 +61,11 @@ class UserPaths:
                 exe_dir = Path(__file__).parent.parent
 
             self.portable_dir = exe_dir / self.PORTABLE_DIR_NAME
-            self._ensure_directory(self.portable_dir)
+            # Création différée : data/ sera matérialisé à la demande par
+            # ensure_logs_directory / ensure_exports_directory.
             self.logger.info(f"[PATHS] MODE PORTABLE activé")
             self.logger.info(f"[PATHS] Répertoire données utilisateur: {self.user_data_dir}")
-            self.logger.info(f"[PATHS] Répertoire portable (logs/exports): {self.portable_dir}")
+            self.logger.info(f"[PATHS] Répertoire portable (logs/exports, créé à la demande): {self.portable_dir}")
         else:
             # Mode normal : tout dans le répertoire utilisateur
             self.portable_dir = None
