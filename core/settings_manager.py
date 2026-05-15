@@ -110,6 +110,21 @@ class SettingsManager:
                 return p
         return profiles[0] if profiles else None
 
+    def get_default_profile(self):
+        """Retourne le profil marqué is_default=True, ou le premier profil si aucun."""
+        profiles = self.get_profiles()
+        for p in profiles:
+            if p.is_default:
+                return p
+        return profiles[0] if profiles else None
+
+    def set_default_profile(self, profile_id: str):
+        """Marque le profil ciblé comme défaut (toggle exclusif — un seul à la fois)."""
+        profiles = self.get_profiles()
+        for p in profiles:
+            p.is_default = (p.profile_id == profile_id)
+        self.save_profiles(profiles)
+
     def migrate_legacy_to_profiles(self):
         """Migration one-shot : crée un profil 'Default' depuis les anciens settings api/key."""
         if self.get_profiles():
@@ -118,7 +133,6 @@ class SettingsManager:
         if not legacy_key:
             return
         from .api_profile import APIProfile, Provider
-        import uuid
         profile = APIProfile(
             name="Default",
             provider=Provider.OPENAI,
@@ -128,6 +142,7 @@ class SettingsManager:
             verify_ssl=self._get('api/verify_ssl', bool),
             temperature=self._get('api/temperature', float) or 0.7,
             max_tokens=None,
+            is_default=True,
         )
         self.save_profiles([profile])
         self.set_active_profile_id(profile.profile_id)

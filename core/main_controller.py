@@ -122,16 +122,18 @@ class MainController(QObject):
         try:
             if not title:
                 title = "New session"
-            
-            conv_id = self.db_manager.create_conversation(title)
+
+            active_profile = self.settings_manager.get_active_profile()
+            profile_id = active_profile.profile_id if active_profile else None
+            conv_id = self.db_manager.create_conversation(title, api_profile_id=profile_id)
             self.current_conversation_id = conv_id
             self.current_messages = []
-            
+
             self.logger.debug(f"[CONTROLLER] Nouvelle conversation créée: ID {conv_id}")
-            
+
             # Mise à jour de la liste
             self.refresh_conversations_list()
-            
+
             return conv_id
         
         except Exception as e:
@@ -157,6 +159,9 @@ class MainController(QObject):
                 self.logger.debug(f"[CONTROLLER] Conversation {conv_id} chargée: "
                                 f"{len(self.current_messages)} messages")
 
+                # Restaurer le profil API lié à cette conversation
+                self._restore_conversation_profile(conv_id)
+
                 self.conversation_loaded.emit(conv_data)
             else:
                 self.error_occurred.emit(f"Conversation {conv_id} introuvable")
@@ -165,6 +170,23 @@ class MainController(QObject):
             self.logger.error(f"[CONTROLLER] Chargement conversation", exc_info=True)
             self.error_occurred.emit(f"Erreur lors du chargement: {str(e)}")
     
+    def _restore_conversation_profile(self, conv_id: int):
+        """Restaure le profil API associé à une conversation, avec fallback sur le profil par défaut."""
+        stored_id = self.db_manager.get_conversation_profile_id(conv_id)
+        known_ids = {p.profile_id for p in self.settings_manager.get_profiles()}
+
+        if stored_id and stored_id in known_ids:
+            # Profil connu → basculer si différent du profil actif
+            if stored_id != self.settings_manager.get_active_profile_id():
+                self.switch_profile(stored_id)
+        else:
+            # Pas de profil lié ou profil supprimé → lier au profil par défaut
+            default = self.settings_manager.get_default_profile()
+            if default:
+                self.db_manager.set_conversation_profile_id(conv_id, default.profile_id)
+                if default.profile_id != self.settings_manager.get_active_profile_id():
+                    self.switch_profile(default.profile_id)
+
     def delete_conversations(self, conv_ids: List[int]):
         """
         Supprime plusieurs conversations.

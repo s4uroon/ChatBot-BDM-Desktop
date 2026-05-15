@@ -113,6 +113,7 @@ class DatabaseManager:
 
             # Migration: ajouter la colonne tokens_estimated si elle n'existe pas
             self._migrate_add_column(cursor, 'messages', 'tokens_estimated', 'INTEGER DEFAULT 0')
+            self._migrate_add_column(cursor, 'conversations', 'api_profile_id', 'TEXT')
 
             self.connection.commit()
             self.logger.debug(f"[DATABASE] INIT: Base de données '{self.db_path}' initialisée")
@@ -134,35 +135,60 @@ class DatabaseManager:
     
     # === CONVERSATIONS ===
     
-    def create_conversation(self, title: str) -> int:
+    def create_conversation(self, title: str, api_profile_id: str = None) -> int:
         """
         Crée une nouvelle conversation.
-        
+
         Args:
             title: Titre de la conversation
-        
+            api_profile_id: UUID du profil API utilisé (optionnel)
+
         Returns:
             ID de la conversation créée
         """
         try:
             cursor = self.connection.cursor()
             created_at = datetime.now().isoformat()
-            
+
             cursor.execute(
-                "INSERT INTO conversations (title, created_at) VALUES (?, ?)",
-                (title, created_at)
+                "INSERT INTO conversations (title, created_at, api_profile_id) VALUES (?, ?, ?)",
+                (title, created_at, api_profile_id)
             )
             self.connection.commit()
-            
+
             conv_id = cursor.lastrowid
             self.logger.debug(f"[DATABASE] CREATE: Conversation ID {conv_id}")
-            
+
             return conv_id
-        
+
         except Exception as e:
             self.logger.error(f"[DATABASE] Création conversation", exc_info=True)
             raise
     
+    def get_conversation_profile_id(self, conv_id: int) -> Optional[str]:
+        """Retourne l'api_profile_id lié à une conversation, ou None."""
+        try:
+            cursor = self.connection.cursor()
+            row = cursor.execute(
+                "SELECT api_profile_id FROM conversations WHERE id = ?", (conv_id,)
+            ).fetchone()
+            return row[0] if row else None
+        except Exception as e:
+            self.logger.warning(f"[DATABASE] get_conversation_profile_id: {e}")
+            return None
+
+    def set_conversation_profile_id(self, conv_id: int, profile_id: str):
+        """Met à jour l'api_profile_id d'une conversation."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "UPDATE conversations SET api_profile_id = ? WHERE id = ?",
+                (profile_id, conv_id)
+            )
+            self.connection.commit()
+        except Exception as e:
+            self.logger.warning(f"[DATABASE] set_conversation_profile_id: {e}")
+
     def get_conversation(self, conv_id: int) -> Optional[Dict]:
         """
         Récupère une conversation par son ID.

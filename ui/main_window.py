@@ -402,12 +402,15 @@ class MainWindow(QMainWindow):
         messages = conv_data.get('messages', [])
         self.chat_widget.load_conversation(messages)
 
-        # Calculer le nombre total de tokens
+        # Synchroniser le combo de profil avec le profil restauré
+        self._refresh_profile_combo()
+
         total_tokens = self._calculate_conversation_tokens(messages)
         msg_count = len(messages)
+        token_str = self._build_token_status(total_tokens)
 
         self.status_bar.showMessage(
-            f"Session '{conv_data['title']}' loaded | {msg_count} messages | ~{total_tokens} tokens"
+            f"Session '{conv_data['title']}' loaded | {msg_count} messages | {token_str}"
         )
     
     def _on_delete_conversations(self, conv_ids: list):
@@ -546,11 +549,11 @@ class MainWindow(QMainWindow):
         self.input_widget.set_enabled(True)
         self.input_widget.set_focus()
 
-        # Calculer les tokens de la conversation
         total_tokens = self._calculate_conversation_tokens(self.controller.current_messages)
         msg_count = len(self.controller.current_messages)
+        token_str = self._build_token_status(total_tokens)
         self.status_bar.showMessage(
-            f"✅ Response generated | {msg_count} messages | ~{total_tokens} tokens", 5000
+            f"✅ Response generated | {msg_count} messages | {token_str}", 5000
         )
 
         # Auto-titrage : si c'est la première réponse (2 messages : user + assistant)
@@ -699,20 +702,10 @@ class MainWindow(QMainWindow):
         dialog.exec()
     
     def _on_settings_saved(self, settings: dict):
-        """Paramètres sauvegardés."""
-        # Mettre à jour l'API client
-        self.controller.update_api_settings(
-            settings['api_key'],
-            settings['base_url'],
-            settings['model'],
-            settings['verify_ssl']
-        )
-
-        # Mettre à jour le thème Highlight.js
+        """Paramètres d'apparence sauvegardés."""
         if 'hljs_theme' in settings:
             self.chat_widget.set_hljs_theme(settings['hljs_theme'])
 
-        # Mettre à jour les couleurs du chat
         if 'colors' in settings and settings['colors']:
             self.chat_widget.set_custom_colors(settings['colors'])
 
@@ -787,20 +780,21 @@ class MainWindow(QMainWindow):
     # === UTILITAIRES ===
 
     def _calculate_conversation_tokens(self, messages: list) -> int:
-        """
-        Calcule le nombre total de tokens estimés dans une conversation.
-
-        Args:
-            messages: Liste de messages
-
-        Returns:
-            int: Nombre total de tokens estimés
-        """
+        """Calcule le nombre total de tokens estimés dans une conversation."""
         total = 0
         for msg in messages:
             content = msg.get('content', '')
             total += estimate_tokens(content)
         return total
+
+    def _build_token_status(self, total_tokens: int) -> str:
+        """Retourne une chaîne d'affichage des tokens avec max_tokens si défini sur le profil."""
+        profile = self.controller.settings_manager.get_active_profile()
+        max_tok = profile.max_tokens if profile and profile.max_tokens else None
+        if max_tok:
+            pct = int(total_tokens / max_tok * 100)
+            return f"~{total_tokens} / {max_tok} tokens ({pct}%)"
+        return f"~{total_tokens} tokens"
 
     def _get_user_friendly_error(self, error_msg: str) -> tuple[str, str]:
         """
