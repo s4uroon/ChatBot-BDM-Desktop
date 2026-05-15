@@ -45,6 +45,7 @@ class APIProfile:
     verify_ssl:  bool          = False
     temperature: float         = 0.7
     max_tokens:  Optional[int] = None
+    is_default:  bool          = False
     profile_id:  str           = field(default_factory=lambda: str(uuid.uuid4()))
 
     def to_dict(self) -> dict:

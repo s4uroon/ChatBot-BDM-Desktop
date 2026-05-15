@@ -105,6 +105,9 @@ class ProfileManagerDialog(QDialog):
         self.verify_ssl_check = QCheckBox("Activer la vérification SSL")
         form.addRow("", self.verify_ssl_check)
 
+        self.is_default_check = QCheckBox("Définir comme profil par défaut")
+        form.addRow("", self.is_default_check)
+
         self.temperature_spin = QDoubleSpinBox()
         self.temperature_spin.setRange(0.0, 2.0)
         self.temperature_spin.setSingleStep(0.05)
@@ -182,6 +185,7 @@ class ProfileManagerDialog(QDialog):
         p.base_url = self.base_url_input.text().strip()
         p.model = self.model_input.text().strip()
         p.verify_ssl = self.verify_ssl_check.isChecked()
+        p.is_default = self.is_default_check.isChecked()
         p.temperature = self.temperature_spin.value()
         mt = self.max_tokens_spin.value()
         p.max_tokens = mt if mt > 0 else None
@@ -198,6 +202,7 @@ class ProfileManagerDialog(QDialog):
         self.base_url_input.setText(profile.base_url)
         self.model_input.setText(profile.model)
         self.verify_ssl_check.setChecked(profile.verify_ssl)
+        self.is_default_check.setChecked(profile.is_default)
         self.temperature_spin.setValue(profile.temperature)
         self.max_tokens_spin.setValue(profile.max_tokens or 0)
 
@@ -208,6 +213,7 @@ class ProfileManagerDialog(QDialog):
         self.base_url_input.clear()
         self.model_input.clear()
         self.verify_ssl_check.setChecked(False)
+        self.is_default_check.setChecked(False)
         self.temperature_spin.setValue(0.7)
         self.max_tokens_spin.setValue(0)
 
@@ -292,6 +298,15 @@ class ProfileManagerDialog(QDialog):
             if not valid:
                 QMessageBox.warning(self, f"Profil « {p.name} »", err)
                 return
+        # Garantir qu'exactement un profil est marqué is_default
+        default_candidates = [p for p in self.profiles if p.is_default]
+        if not default_candidates:
+            self.profiles[0].is_default = True
+        elif len(default_candidates) > 1:
+            # Conserver uniquement le dernier sélectionné (courant si possible)
+            keep = default_candidates[-1]
+            for p in self.profiles:
+                p.is_default = (p.profile_id == keep.profile_id)
         self.settings_manager.save_profiles(self.profiles)
         # Si le profil actif a été supprimé, pointer sur le premier
         active_id = self.settings_manager.get_active_profile_id()
