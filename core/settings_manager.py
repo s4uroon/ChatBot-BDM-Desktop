@@ -100,6 +100,14 @@ class SettingsManager:
         self.settings.setValue('profiles/list', json.dumps([p.to_dict() for p in profiles]))
         self.settings.sync()
 
+    def add_profile(self, profile) -> None:
+        """Ajoute un profil ; le marque is_default=True s'il est le tout premier."""
+        profiles = self.get_profiles()
+        if not profiles:
+            profile.is_default = True
+        profiles.append(profile)
+        self.save_profiles(profiles)
+
     def get_active_profile_id(self) -> str:
         """Retourne l'ID du profil actif."""
         return self.settings.value('profiles/active_id', '') or ''
@@ -150,9 +158,8 @@ class SettingsManager:
             verify_ssl=self._get('api/verify_ssl', bool),
             temperature=self._get('api/temperature', float) or 0.7,
             max_tokens=None,
-            is_default=True,
         )
-        self.save_profiles([profile])
+        self.add_profile(profile)
         self.set_active_profile_id(profile.profile_id)
         self.logger.debug("[SETTINGS] Settings legacy migrés vers le profil 'Default'")
 

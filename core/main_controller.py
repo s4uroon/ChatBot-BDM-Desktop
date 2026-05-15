@@ -190,18 +190,12 @@ class MainController(QObject):
         else:
             default = self.settings_manager.get_default_profile()
             if default:
-                if stored_id is None:
-                    # Ancienne conversation sans profil → lier au défaut en DB
-                    self.db_manager.set_conversation_profile_id(conv_id, default.profile_id)
-                    self.logger.debug(
-                        f"[CONTROLLER] Conv {conv_id} liée au profil par défaut {default.profile_id!r}"
-                    )
-                else:
-                    # Profil supprimé → bascule sur défaut sans écraser le UUID original
-                    self.logger.debug(
-                        f"[CONTROLLER] Profil {stored_id!r} introuvable, "
-                        f"bascule sur défaut {default.profile_id!r}"
-                    )
+                # Profil supprimé OU jamais lié → persister le défaut en DB
+                self.db_manager.set_conversation_profile_id(conv_id, default.profile_id)
+                self.logger.debug(
+                    f"[CONTROLLER] Conv {conv_id} re-liée au profil par défaut "
+                    f"{default.profile_id!r} (ancien={stored_id!r})"
+                )
                 if default.profile_id != self.settings_manager.get_active_profile_id():
                     self.switch_profile(default.profile_id)
 
@@ -259,6 +253,8 @@ class MainController(QObject):
             self.error_occurred.emit("Client API non initialisé. Vérifiez vos paramètres.")
             return
 
+        is_first_message = not self.current_conversation_id or len(self.current_messages) == 0
+
         if not self.current_conversation_id:
             title = self._generate_title_from_message(user_message)
             self.create_new_conversation(title)
@@ -267,6 +263,17 @@ class MainController(QObject):
             self.db_manager.update_conversation_title(self.current_conversation_id, new_title)
             self.refresh_conversations_list()
             self.logger.debug(f"[CONTROLLER] Titre mis à jour: '{new_title}'")
+
+        if is_first_message and self.current_conversation_id:
+            active = self.settings_manager.get_active_profile()
+            if active:
+                self.db_manager.set_conversation_profile_id(
+                    self.current_conversation_id, active.profile_id
+                )
+                self.logger.debug(
+                    f"[CONTROLLER] Conv {self.current_conversation_id} liée "
+                    f"au profil actif {active.profile_id!r} (premier message)"
+                )
 
         try:
             tokens = self._estimate_tokens(user_message)
