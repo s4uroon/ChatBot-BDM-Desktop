@@ -90,11 +90,28 @@ class MainController(QObject):
             self.logger.error(f"[CONTROLLER] Initialisation API Client", exc_info=True)
 
     def switch_profile(self, profile_id: str):
-        """Bascule vers un autre profil API à chaud."""
+        """
+        Bascule vers un autre profil API à chaud.
+
+        Si la conversation courante n'a encore reçu aucun message, on met
+        également à jour son api_profile_id en DB pour suivre le choix de
+        l'utilisateur. Une fois qu'un message a été envoyé, la liaison
+        devient permanente et seul le profil actif change.
+        """
         self.settings_manager.set_active_profile_id(profile_id)
         self._initialize_api_client()
         profile = self.settings_manager.get_active_profile()
         name = profile.name if profile else "?"
+
+        if self.current_conversation_id and len(self.current_messages) == 0:
+            self.db_manager.set_conversation_profile_id(
+                self.current_conversation_id, profile_id
+            )
+            self.logger.debug(
+                f"[CONTROLLER] Conv {self.current_conversation_id} (vide) "
+                f"re-liée au profil {profile_id!r}"
+            )
+
         self.status_changed.emit(f"Profil API changé : {name}")
 
     def get_active_temperature(self) -> float:
@@ -112,10 +129,16 @@ class MainController(QObject):
     def create_new_conversation(self, title: Optional[str] = None) -> int:
         """
         Crée une nouvelle conversation.
-        
+
+        Le profil API attaché est toujours le profil "par défaut" configuré dans
+        les paramètres. Le profil actif est basculé sur ce défaut pour que l'UI
+        le reflète immédiatement. Tant que la session reste vide, l'utilisateur
+        peut changer de profil via le sélecteur (cf. switch_profile), et la
+        liaison sera mise à jour ; le choix devient permanent au premier message.
+
         Args:
             title: Titre de la conversation (généré auto si None)
-        
+
         Returns:
             ID de la nouvelle conversation
         """
@@ -123,19 +146,27 @@ class MainController(QObject):
             if not title:
                 title = "New session"
 
-            active_profile = self.settings_manager.get_active_profile()
-            profile_id = active_profile.profile_id if active_profile else None
+            default_profile = self.settings_manager.get_default_profile()
+            profile_id = default_profile.profile_id if default_profile else None
+
+            if default_profile and \
+                    self.settings_manager.get_active_profile_id() != default_profile.profile_id:
+                self.switch_profile(default_profile.profile_id)
+
             conv_id = self.db_manager.create_conversation(title, api_profile_id=profile_id)
             self.current_conversation_id = conv_id
             self.current_messages = []
 
-            self.logger.debug(f"[CONTROLLER] Nouvelle conversation créée: ID {conv_id}")
+            self.logger.debug(
+                f"[CONTROLLER] Nouvelle conversation créée: ID {conv_id} "
+                f"(profil défaut={profile_id!r})"
+            )
 
             # Mise à jour de la liste
             self.refresh_conversations_list()
 
             return conv_id
-        
+
         except Exception as e:
             self.logger.error(f"[CONTROLLER] Création conversation", exc_info=True)
             self.error_occurred.emit(f"Erreur lors de la création: {str(e)}")
