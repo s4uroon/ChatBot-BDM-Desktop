@@ -82,10 +82,18 @@ class SettingsManager:
         """Retourne la liste des profils API (list[APIProfile])."""
         raw = self.settings.value('profiles/list', '[]')
         try:
-            from .api_profile import APIProfile
-            return [APIProfile.from_dict(d) for d in json.loads(raw or '[]')]
-        except Exception:
+            data = json.loads(raw or '[]')
+        except Exception as e:
+            self.logger.warning(f"[SETTINGS] Impossible de parser la liste des profils : {e}")
             return []
+        from .api_profile import APIProfile
+        result = []
+        for d in data:
+            try:
+                result.append(APIProfile.from_dict(d))
+            except Exception as e:
+                self.logger.warning(f"[SETTINGS] Profil ignoré (données invalides) : {e}")
+        return result
 
     def save_profiles(self, profiles: list):
         """Sauvegarde la liste complète des profils."""

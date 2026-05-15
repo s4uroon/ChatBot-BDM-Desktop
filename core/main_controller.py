@@ -173,17 +173,35 @@ class MainController(QObject):
     def _restore_conversation_profile(self, conv_id: int):
         """Restaure le profil API associé à une conversation, avec fallback sur le profil par défaut."""
         stored_id = self.db_manager.get_conversation_profile_id(conv_id)
-        known_ids = {p.profile_id for p in self.settings_manager.get_profiles()}
+        profiles = self.settings_manager.get_profiles()
+        known_ids = {p.profile_id for p in profiles}
+
+        self.logger.debug(
+            f"[CONTROLLER] Restauration profil conv {conv_id}: "
+            f"stored={stored_id!r}, known={len(known_ids)}, "
+            f"active={self.settings_manager.get_active_profile_id()!r}"
+        )
 
         if stored_id and stored_id in known_ids:
             # Profil connu → basculer si différent du profil actif
             if stored_id != self.settings_manager.get_active_profile_id():
+                self.logger.debug(f"[CONTROLLER] Bascule vers profil {stored_id!r}")
                 self.switch_profile(stored_id)
         else:
-            # Pas de profil lié ou profil supprimé → lier au profil par défaut
             default = self.settings_manager.get_default_profile()
             if default:
-                self.db_manager.set_conversation_profile_id(conv_id, default.profile_id)
+                if stored_id is None:
+                    # Ancienne conversation sans profil → lier au défaut en DB
+                    self.db_manager.set_conversation_profile_id(conv_id, default.profile_id)
+                    self.logger.debug(
+                        f"[CONTROLLER] Conv {conv_id} liée au profil par défaut {default.profile_id!r}"
+                    )
+                else:
+                    # Profil supprimé → bascule sur défaut sans écraser le UUID original
+                    self.logger.debug(
+                        f"[CONTROLLER] Profil {stored_id!r} introuvable, "
+                        f"bascule sur défaut {default.profile_id!r}"
+                    )
                 if default.profile_id != self.settings_manager.get_active_profile_id():
                     self.switch_profile(default.profile_id)
 
