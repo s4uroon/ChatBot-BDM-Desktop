@@ -58,6 +58,7 @@ class InputWidget(QWidget):
     """
     
     message_submitted = pyqtSignal(str)
+    stop_generation_requested = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -139,9 +140,34 @@ class InputWidget(QWidget):
             }
         """)
         
-        # Ajouter TextEdit puis Send Button (dans cet ordre = Send à droite)
-        input_send_layout.addWidget(self.text_edit, stretch=1)  # TextEdit prend l'espace
-        input_send_layout.addWidget(self.send_button, stretch=0)  # Send taille fixe
+        # Bouton Stop (visible uniquement pendant la génération)
+        self.stop_button = QPushButton("⏹ Stop")
+        self.stop_button.setToolTip("Arrêter la génération (Échap)")
+        self.stop_button.setFixedWidth(100)
+        self.stop_button.setMinimumHeight(60)
+        self.stop_button.setVisible(False)
+        self.stop_button.clicked.connect(self.stop_generation_requested)
+        self.stop_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #e53935;
+            }
+            QPushButton:pressed {
+                background-color: #c62828;
+            }
+        """)
+
+        # Ajouter TextEdit puis Stop puis Send (Send caché pendant génération)
+        input_send_layout.addWidget(self.text_edit, stretch=1)
+        input_send_layout.addWidget(self.stop_button, stretch=0)
+        input_send_layout.addWidget(self.send_button, stretch=0)
         
         main_layout.addLayout(input_send_layout)
         
@@ -179,9 +205,15 @@ class InputWidget(QWidget):
             self.text_edit.clear()
     
     def set_enabled(self, enabled: bool):
-        """Active/désactive le widget."""
+        """Active/désactive le widget. False = streaming en cours (affiche Stop)."""
         self.text_edit.setEnabled(enabled)
-        self.send_button.setEnabled(enabled and len(self.text_edit.toPlainText().strip()) > 0)
+        if enabled:
+            self.send_button.setVisible(True)
+            self.stop_button.setVisible(False)
+            self.send_button.setEnabled(len(self.text_edit.toPlainText().strip()) > 0)
+        else:
+            self.send_button.setVisible(False)
+            self.stop_button.setVisible(True)
     
     def set_focus(self):
         """Donne le focus au champ de saisie."""

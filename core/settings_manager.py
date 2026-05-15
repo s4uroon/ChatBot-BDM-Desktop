@@ -4,6 +4,8 @@ core/settings_manager.py
 Gestionnaire de paramètres avec QSettings (persistance)
 """
 
+import json
+
 from PyQt6.QtCore import QSettings
 from typing import Optional
 from pathlib import Path
@@ -71,8 +73,67 @@ class SettingsManager:
             # Utiliser l'emplacement par défaut de QSettings
             self.settings = QSettings('ChatbotDesktop', 'ChatbotApp')
             self.logger.debug("[SETTINGS] Initialisé avec emplacement par défaut")
-    
-    # === API SETTINGS ===
+
+        self.migrate_legacy_to_profiles()
+
+    # === PROFILS API MULTI-FOURNISSEURS ===
+
+    def get_profiles(self) -> list:
+        """Retourne la liste des profils API (list[APIProfile])."""
+        raw = self.settings.value('profiles/list', '[]')
+        try:
+            from .api_profile import APIProfile
+            return [APIProfile.from_dict(d) for d in json.loads(raw or '[]')]
+        except Exception:
+            return []
+
+    def save_profiles(self, profiles: list):
+        """Sauvegarde la liste complète des profils."""
+        self.settings.setValue('profiles/list', json.dumps([p.to_dict() for p in profiles]))
+        self.settings.sync()
+
+    def get_active_profile_id(self) -> str:
+        """Retourne l'ID du profil actif."""
+        return self.settings.value('profiles/active_id', '') or ''
+
+    def set_active_profile_id(self, profile_id: str):
+        """Définit le profil actif."""
+        self.settings.setValue('profiles/active_id', profile_id)
+        self.settings.sync()
+
+    def get_active_profile(self):
+        """Retourne le profil actif (APIProfile ou None)."""
+        active_id = self.get_active_profile_id()
+        profiles = self.get_profiles()
+        for p in profiles:
+            if p.profile_id == active_id:
+                return p
+        return profiles[0] if profiles else None
+
+    def migrate_legacy_to_profiles(self):
+        """Migration one-shot : crée un profil 'Default' depuis les anciens settings api/key."""
+        if self.get_profiles():
+            return
+        legacy_key = self._get('api/key', str)
+        if not legacy_key:
+            return
+        from .api_profile import APIProfile, Provider
+        import uuid
+        profile = APIProfile(
+            name="Default",
+            provider=Provider.OPENAI,
+            api_key=legacy_key,
+            base_url=self._get('api/base_url', str) or Provider.DEFAULT_URLS[Provider.OPENAI],
+            model=self._get('api/model', str) or 'gpt-4',
+            verify_ssl=self._get('api/verify_ssl', bool),
+            temperature=self._get('api/temperature', float) or 0.7,
+            max_tokens=None,
+        )
+        self.save_profiles([profile])
+        self.set_active_profile_id(profile.profile_id)
+        self.logger.debug("[SETTINGS] Settings legacy migrés vers le profil 'Default'")
+
+    # === API SETTINGS (legacy - conservé pour compatibilité) ===
     
     def get_api_key(self) -> str:
         """Retourne la clé API."""

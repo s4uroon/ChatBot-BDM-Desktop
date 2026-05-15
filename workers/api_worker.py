@@ -48,8 +48,9 @@ class APIWorker(QThread):
         self.max_tokens = max_tokens
         
         self._is_running = False
+        self._stopped_by_user = False
         self._full_response = ""
-    
+
     def run(self):
         """Exécute le streaming API dans le thread."""
         self._is_running = True
@@ -85,8 +86,11 @@ class APIWorker(QThread):
             duration = time.time() - start_time
             
             if self._is_running:
-                # Succès
                 self.logger.debug(f"[WORKER] Stream terminé: {chunk_count} chunks en {duration:.2f}s")
+                self.response_complete.emit(self._full_response)
+            elif self._full_response:
+                # Arrêté par l'utilisateur mais contenu partiel disponible
+                self.logger.debug(f"[WORKER] Arrêt utilisateur avec {len(self._full_response)} chars partiels")
                 self.response_complete.emit(self._full_response)
             
         except Exception as e:
@@ -99,7 +103,12 @@ class APIWorker(QThread):
     def stop(self):
         """Arrête le thread proprement."""
         self._is_running = False
-        self.logger.debug("[WORKER] Arrêt demandé")
+        self._stopped_by_user = True
+        self.logger.debug("[WORKER] Arrêt demandé par l'utilisateur")
+
+    def was_stopped_by_user(self) -> bool:
+        """Indique si le thread a été arrêté manuellement."""
+        return self._stopped_by_user
     
     def get_full_response(self) -> str:
         """Retourne la réponse complète accumulée."""
